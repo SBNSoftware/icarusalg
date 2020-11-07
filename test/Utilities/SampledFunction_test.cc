@@ -20,6 +20,36 @@
 
 
 //------------------------------------------------------------------------------
+template <typename T, typename U>
+constexpr T constexpr_floor(U num) {
+  
+  // goes to closest smaller positive integer or larger negative integer
+  T const inum = static_cast<T>(num);
+  if (num == static_cast<float>(inum)) return inum;
+  
+  return (num > U{ 0 })? inum: inum - T{ 1 };
+} // constexpr_floor()
+
+static_assert(constexpr_floor<int>(0) == 0);
+
+static_assert(constexpr_floor<int>(-2.00) == -2);
+static_assert(constexpr_floor<int>(-1.75) == -2);
+static_assert(constexpr_floor<int>(-1.50) == -2);
+static_assert(constexpr_floor<int>(-1.25) == -2);
+static_assert(constexpr_floor<int>(-1.00) == -1);
+static_assert(constexpr_floor<int>(-0.75) == -1);
+static_assert(constexpr_floor<int>(-0.50) == -1);
+static_assert(constexpr_floor<int>(-0.00) == +0);
+static_assert(constexpr_floor<int>(+0.00) == +0);
+static_assert(constexpr_floor<int>(+0.50) == +0);
+static_assert(constexpr_floor<int>(+0.75) == +0);
+static_assert(constexpr_floor<int>(+1.00) == +1);
+static_assert(constexpr_floor<int>(+1.25) == +1);
+static_assert(constexpr_floor<int>(+1.50) == +1);
+static_assert(constexpr_floor<int>(+1.75) == +1);
+static_assert(constexpr_floor<int>(+2.00) == +2);
+
+//------------------------------------------------------------------------------
 void IdentityTest() {
 
   auto identity = [](double x){ return x; };
@@ -41,7 +71,7 @@ void IdentityTest() {
     );
 
   // function with 10 samples, sampled 4 times
-  util::SampledFunction sampled { identity, min, max, nSamples, nSubsamples };
+  util::SampledFunction<> sampled { identity, min, max, nSamples, nSubsamples };
 
   //
   // Query
@@ -127,14 +157,14 @@ void ExtendedRangeTest() {
   // be included, (y > stopValue) should be used.
   constexpr double stopValue = identity(stopBefore);
   auto const stopIf
-    = [stopValue](double, double y){ return (y < 0) || (y >= stopValue); };
+    = [](double, double y){ return (y < 0) || (y >= stopValue); };
 
   // function with 10 samples, sampled 4 times
   util::SampledFunction sampled
     { identity, min, step, stopIf, nSubsamples, atLeast };
 
   constexpr gsl::index expected_nSamples
-    = static_cast<gsl::index>(std::floor((stopBefore - min) / step));
+    = constexpr_floor<gsl::index>((stopBefore - min) / step);
   constexpr gsl::index expected_max = min + step * expected_nSamples;
   constexpr gsl::index expected_range = expected_max - min;
 

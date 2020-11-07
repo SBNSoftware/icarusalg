@@ -2,7 +2,7 @@
 
 # The *parent* line must the first non-commented line and defines this product and version
 # The version must be of the form vxx_yy_zz (e.g. v01_02_03)
-parent icarusalg v09_07_00
+parent icarusalg v09_09_01
 defaultqual e19
 
 # These optional lines define where headers, libraries, and executables go and should
@@ -34,22 +34,22 @@ table_fragment_end
 
 product             version
 lardataalg                v09_03_00
-guideline_sl              v2_0_0
+guideline_sl        v2_0_0
 
-cetbuildtools	          v7_17_01	-	only_for_build
+cetbuildtools	    v7_17_01	-	only_for_build
 end_product_list
 
 # Restore this temporarily...
 # We now define allowed qualifiers and the corresponding qualifiers for the depdencies.
 # Make a table by adding columns before "notes".
 # e15  - with gcc 6.4.0 and -std=c++1y
-qualifier	larcorealg	 lardataalg   guideline_sl notes
-e19:debug	e19:debug    e19:debug      -nq-
-e19:opt		e19:opt	     e19:opt        -nq-
-e19:prof    e19:prof     e19:prof       -nq-
-c7:debug    c7:debug     c7:debug       -nq-
-c7:opt      c7:opt       c7:opt         -nq-
-c7:prof     c7:prof      c7:prof        -nq-
+qualifier	larsoftobj	 guideline_sl notes
+e19:debug	e19:debug    -nq-
+e19:opt		e19:opt	     -nq-
+e19:prof    e19:prof     -nq-
+c7:debug    c7:debug     -nq-
+c7:opt      c7:opt       -nq-
+c7:prof     c7:prof      -nq-
 end_qualifier_list
 
 # Preserve tabs and formatting in emacs and vi / vim:

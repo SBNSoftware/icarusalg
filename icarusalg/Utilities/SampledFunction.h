@@ -102,6 +102,8 @@ class util::SampledFunction {
   /// Span of subsample data. Can be forward iterated.
   using SubsampleData_t = gsl::span<Y_t const>;
 
+  SampledFunction() = default; // FIXME remove this
+  
   /**
    * @brief Constructor: samples `function` in the specified range.
    * @tparam Func type of a functor (see requirements below)
@@ -348,7 +350,26 @@ class util::SampledFunction {
   template <typename T>
   static T wrapUp(T value, T range);
 
-}; // class SampledFunction<>
+}; // class util::SampledFunction<>
+
+
+// template deduction guide:
+namespace util {
+  
+  // when YType is not deducible (Clang 7.0.0 can't deduce it, GCC 8.2 can)
+  template <typename XType, typename Func, typename UntilFunc>
+  SampledFunction(Func const&, XType, XType, UntilFunc&&, gsl::index, XType)
+    -> SampledFunction<XType, XType>;
+  
+  template <typename XType, typename Func>
+  SampledFunction(Func const&, XType, XType, gsl::index, gsl::index = 1)
+    -> SampledFunction<XType, XType>;
+  
+  template <typename XType, typename Func, typename UntilFunc>
+  SampledFunction(Func const&, XType, XType, UntilFunc&&, gsl::index = 1)
+    -> SampledFunction<XType, XType>;
+  
+} // namespace util
 
 
 // =============================================================================
