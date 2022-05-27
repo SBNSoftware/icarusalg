@@ -68,6 +68,10 @@
 # 20200709 (petrillo@slac.stanford.edu)
 #   adopted split wire geometry fixed by
 #   Alessandro Menegolli (alessandro.menegolli@unipv.it)
+# 20220505 (petrillo@slac.stanford.edu)
+#   geometry default changed to include overburden
+# 20220527 (petrillo@slac.stanford.edu)
+#   added icarus_geometry_services_future_icarus_v4 configurations
 #
 
 
@@ -376,6 +380,21 @@ icarus_geometry_services_overburden_legacy_icarus_splitwires.Geometry.ROOT: "ica
 
 icarus_geometry_services_legacy_icarus_splitwires:
   @local::icarus_geometry_services_no_overburden_legacy_icarus_splitwires
+
+
+###
+### icarus_geometry_services_future_icarus_v4:
+###   geometry tagged as `icarus_v4` for samples produced with ~v09_53_00
+###   and later
+### 
+### This geometry description includes overburden and some top CRT module
+### rotation compared to `icarus_v3`.
+###
+icarus_geometry_services_future_icarus_v4: 
+  @local::icarus_geometry_services_legacy_icarus_v2
+icarus_geometry_services_future_icarus_v4.Geometry.Name: icarus_v4
+icarus_geometry_services_future_icarus_v4.Geometry.GDML: "icarus_complete_20220518_overburden.gdml"
+icarus_geometry_services_future_icarus_v4.Geometry.ROOT: "icarus_complete_20220518_overburden.gdml"
 
 
 ################################################################################
