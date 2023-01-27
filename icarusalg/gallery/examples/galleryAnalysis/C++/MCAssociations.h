@@ -59,8 +59,7 @@ public:
 private:
     double length(const recob::Track*) const;
     double length(const simb::MCParticle& part, double dx,
-                  TVector3& start, TVector3& end, TVector3& startmom, TVector3& endmom,
-                  unsigned int tpc = 0, unsigned int cstat = 0) const;
+                  geo::Point_t& start, geo::Point_t& end, geo::Vector_t& startmom, geo::Vector_t& endmom) const;
     
     art::InputTag            fHitProducerLabel;
     art::InputTag            fMCTruthProducerLabel;

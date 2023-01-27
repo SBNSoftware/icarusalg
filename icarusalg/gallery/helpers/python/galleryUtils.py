@@ -126,7 +126,7 @@ class HandleMaker:
         inputTag = ROOT.art.InputTag("largeant")
         
         getParticlesFrom = make_getValidHandle("std::vector<simb::MCParticle>")
-        # note: the following is curretly mostly broken (see below)
+        # note: the following is currently mostly broken (see below)
         particles1 = getParticlesFrom(event, inputTag).product()
         
         getParticles = make_getValidHandle("std::vector<simb::MCParticle>", event)

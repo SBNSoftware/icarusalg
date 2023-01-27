@@ -13,6 +13,7 @@
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "larcorealg/Geometry/geo_vectors_utils.h" // geo::vect::toPoint()
 
 // canvas libraries
 #include "canvas/Persistency/Common/FindMany.h"
@@ -243,10 +244,8 @@ void MCAssociations::doTrackHitMCAssociations(gallery::Event& event)
         }
     
         // Calculate the length of this mc particle inside the fiducial volume.
-        TVector3 mcstart;
-        TVector3 mcend;
-        TVector3 mcstartmom;
-        TVector3 mcendmom;
+        geo::Point_t mcstart [[maybe_unused]], mcend [[maybe_unused]];
+        geo::Vector_t mcstartmom [[maybe_unused]], mcendmom [[maybe_unused]];
     
         double xOffset(0.);
     
@@ -357,14 +356,13 @@ double MCAssociations::length(const recob::Track* track) const
 // Length of MC particle.
 //----------------------------------------------------------------------------
 double MCAssociations::length(const simb::MCParticle& part, double dx,
-                              TVector3& start, TVector3& end, TVector3& startmom, TVector3& endmom,
-                              unsigned int tpc, unsigned int cstat) const
+                              geo::Point_t& start, geo::Point_t& end, geo::Vector_t& startmom, geo::Vector_t& endmom) const
 {
     // Need the readout window size...
   //    double readOutWindowSize = fDetectorProperties->ReadOutWindowSize();
     
     double result = 0.;
-    TVector3 disp;
+    geo::Point_t prev;
     int n = part.NumberTrajectoryPoints();
     bool first = true;
     
@@ -376,29 +374,22 @@ double MCAssociations::length(const simb::MCParticle& part, double dx,
     // Loop over the complete collection of trajectory points
     for(int i = 0; i < n; ++i)
     {
-        TVector3 posInTPC(0.,0.,0.);
-        TVector3 posVec = part.Position(i).Vect();
-        double   pos[]  = {posVec.X(),posVec.Y(),posVec.Z()};
+        geo::Point_t pos = geo::vect::toPoint(part.Position(i).Vect());
         
         // Try identifying the TPC we are in
-        unsigned int tpc(0);
-        unsigned int cstat(0);
-
+        const geo::TPCGeo* tpcGeo = fGeometry->PositionToTPCptr(pos);
         // Need to make sure this position is in an active region of the TPC
         // If the particle is not in the cryostat then we skip
-        try
-        {
-            const geo::TPCGeo& tpcGeo = fGeometry->PositionToTPC(pos, tpc, cstat);
-            
-            TVector3 activePos = posVec - tpcGeo.GetActiveVolumeCenter();
-            
-            if (part.TrackId() == findTrackID)
-                std::cout << "   --> traj point: " << i << ", pos: " << posVec.X() << "/" << posVec.Y() << "/" << posVec.Z() << ", active pos: " << activePos.X() << "/" << activePos.Y() << "/" << activePos.Z() << std::endl;
-            
-            if (std::fabs(activePos.X()) > tpcGeo.ActiveHalfWidth() || std::fabs(activePos.Y()) > tpcGeo.ActiveHalfHeight() || std::fabs(activePos.Z()) > 0.5 * tpcGeo.ActiveLength()) continue;
-            
-            posInTPC = TVector3(activePos.X() + tpcGeo.ActiveHalfWidth(), activePos.Y(), activePos.Z());
-        } catch(...) {continue;}
+        if (!tpcGeo) continue;
+        if (!tpcGeo->ActiveBoundingBox().ContainsPosition(pos)) continue;
+        
+        
+        geo::Vector_t const activePos = pos - tpcGeo->GetActiveVolumeCenter();
+        geo::Vector_t const posInTPC = activePos + tpcGeo->ActiveHalfWidth() * geo::Xaxis();
+        
+        if (part.TrackId() == findTrackID) {
+            std::cout << "   --> traj point: " << i << ", pos: " << pos << ", active pos: " << activePos << std::endl;
+        }
         
         // Make fiducial cuts.
         // There are two sets here:
@@ -406,11 +397,11 @@ double MCAssociations::length(const simb::MCParticle& part, double dx,
         //    within the confines of the physical TPC
         // 2) We then check the timing of the presumed hit and make sure it lies within the
         //    readout window for this simulation
-        pos[0] += dx;
-        double ticks = fDetectorProperties->ConvertXToTicks(posInTPC.X(), 0, tpc, cstat);
+        pos += dx * geo::Xaxis();
+        double ticks = fDetectorProperties->ConvertXToTicks(posInTPC.X(), geo::PlaneID{ tpcGeo->ID(), 0 });
         
         if (part.TrackId() == findTrackID)
-            std::cout << "   ==> tpc: " << tpc << ", cstat: " << cstat << ", ticks: " << ticks << std::endl;
+            std::cout << "   ==> " << tpcGeo->ID() << ", ticks: " << ticks << std::endl;
 
         // Currently it appears that the detector properties are not getting initialized properly and the returned
         // number of ticks is garbage so we need to skip this for now. Will be important when we get CR's
@@ -419,25 +410,24 @@ double MCAssociations::length(const simb::MCParticle& part, double dx,
             if(first)
             {
                 start = pos;
-                startmom = part.Momentum(i).Vect();
+                startmom = geo::vect::toVector(part.Momentum(i).Vect());
+                first = false;
             }
             else
             {
-                disp -= pos;
-                result += disp.Mag();
+                result += (pos - prev).R();
             }
-            first = false;
-            disp = pos;
+            prev = pos;
             end = pos;
-            endmom = part.Momentum(i).Vect();
+            endmom = geo::vect::toVector(part.Momentum(i).Vect());
         }
         
         if (part.TrackId() == findTrackID)
         {
             try
             {
-                std::cout << ">>> Track #" << findTrackID << ", pos: " << posVec.X() << ", " << posVec.Y() << ", " << posVec.Z() << ", ticks: " << ticks << ", nearest Y wire: ";
-                geo::WireID wireID = fGeometry->NearestWireID(pos, 2);
+                std::cout << ">>> Track #" << findTrackID << ", pos: " << pos << ", ticks: " << ticks << ", nearest collection wire: ";
+                geo::WireID wireID = fGeometry->NearestWireID(pos, geo::PlaneID{ tpcGeo->ID(), 2 });
                 std::cout << wireID << std::endl;
             }
             catch(...) {}

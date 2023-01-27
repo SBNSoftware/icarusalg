@@ -2,22 +2,30 @@
 # File:    icarus_gallery_setup
 # Purpose: setup for use of gallery macros with ICARUS
 # Author:  Gianluca Petrillo (petrillo@slac.stanford.edu)
-# Date:    October 19, 2017
-# Version: 1.1
+# Date:    January 26, 2023
+# Version: 1.2
 # 
 # Usage:
 # To set up the gallery/larsoftobj version compatible with a specific experiment
 # code version (e.g. v09_06_00 with qualifiers e19:prof):
 #     
-#     setup icarusalg v09_06_00 -q e19:prof # or any suitable version
+#     setup icarusalg v09_65_02 -q e20:prof # or any suitable version
 #     source icarus_gallery_setup
 #     
 # or let icarusalg setup happen inside this setup script:
 #     
-#     source icarus_gallery_setup v09_06_00 e19:prof
+#     source icarus_gallery_setup v09_65_02 e20:prof
 #     
-#
+# Currently this script:
+#  * attempts to set up `icarusalg` if requested
+#  * ensures that cetmodules is set up (sets up latest version if not yet)
+# 
 # Changes:
+# 20220126 [v1.2] (petrillo@slac.stanford.edu)
+#   * setup greatly simplified
+#     (because icarusalg now pulls in larsoftobj and gallery);
+#   * discovering UPS product setup with `ups active` instead of the XXX_SETUP
+#     environment variable, which UPS does not reliably set
 # 20201016 [v1.1] (petrillo@slac.stanford.edu)
 #   version updates and using icarusalg instead of icaruscode;
 #   added UPS check
@@ -25,11 +33,6 @@
 #   original version from SBND
 #
 
-#
-# The script is quite complicate because it needs to figure out which version
-# of larsoftobj is required, which is not trivial.
-# In addition, it needs some version of `cmake` from UPS.
-#
 
 function ICARUSgallerySetup_CheckUPS() {
   which ups &> /dev/null
@@ -120,6 +123,54 @@ function ICARUSgallerySetup_MatchProductQualifiers() {
 } # ICARUSgallerySetup_MatchProductQualifiers()
 
 
+function ICARUSgallerySetup_FormatSetupPackageInfo() {
+  #
+  # ICARUSgallerySetup_FormatSetupPackageInfo PackageName [FormatString]
+  # 
+  # will print on output a string with information from `ups active` about PackageName.
+  # Returns 0 if a match was found with the proper format; on format mismatch the error code is 2.
+  # Supported tags for the format string are:
+  #  %n  name of the package
+  #  %v  version of the set up package
+  #  %q  qualifiers of the set up package
+  #  %f  flavour of the set up package
+  #  %z  path of the repository the package set up is stored at
+  # The default format string is '%n %v %f %q %z'
+  #
+  local -r DefaultFormatString='%n %v %f %q %z'
+  local PackageName="$1"
+  local FormatString="${2:-$DefaultFormatString}"
+
+  local -r SetupVarPattern='([^ ]+) +([^ ]+) +(-f +([^ ]+))? +-q +([^ ]+) +(-z +(.+))?'
+  local -ir PkgNameTag=1 PkgVersionTag=2 PkgFlavorTag=4 PkgQualTag=5 PkgRepoPathTag=7
+  
+  # extract the information
+  local PkgSetupInfo
+  # exit code is from `grep`
+  PkgSetupInfo="$(ups active | grep -w "^${PackageName,,}")" || return $?
+  
+  [[ "$PkgSetupInfo" =~ $SetupVarPattern ]] || return 2
+  
+  local PkgName="${BASH_REMATCH[$PkgNameTag]}"
+  local PkgVersion="${BASH_REMATCH[$PkgVersionTag]}"
+  local PkgFlavor="${BASH_REMATCH[$PkgFlavorTag]}"
+  local PkgDatabase="${BASH_REMATCH[$PkgRepoPathTag]}"
+  local PkgQualifiers="${BASH_REMATCH[$PkgQualTag]}"
+  
+  # format the output
+  local OutputString="$FormatString"
+  
+  OutputString="${OutputString//%n/${PkgName}}"
+  OutputString="${OutputString//%v/${PkgVersion}}"
+  OutputString="${OutputString//%f/${PkgFlavor}}"
+  OutputString="${OutputString//%q/${PkgQualifiers}}"
+  OutputString="${OutputString//%z/${PkgDatabase}}"
+  
+  echo "$OutputString"
+  
+} # ICARUSgallerySetup_FormatSetupPackageInfo()
+
+
 function ICARUSgallerySetup_setupLatest() {
   # looks for what it seems to be the highest version
   # (with required qualifiers if any) and sets it up
@@ -180,12 +231,6 @@ function DoICARUSgallerySetup() {
   local -r ExpCode='icarusalg'
   
   ##############################################################################
-  ### LArSoft-specific setup
-  ### 
-  local -r ReferencePkgs=( 'larcorealg' 'lardataobj' )
-  local -r TargetPkg='larsoftobj'
-  
-  ##############################################################################
   ### Argument parsing
   ### 
   local ExpCodeVersion="$1"
@@ -209,41 +254,55 @@ function DoICARUSgallerySetup() {
   #
   # experiment code package setup
   #
-  local -r ExpSetupVarName="SETUP_${ExpCode^^}"
-  if [[ -n "${!ExpSetupVarName}" ]]; then
+  local ExpSetupInfo
+  ExpSetupInfo="$(ICARUSgallerySetup_FormatSetupPackageInfo "$ExpCode" '%n %v %q')"
+  if [[ $? == 0 ]]; then
     #
-    # if we have experiment code set up, check that the version is not unexpected
+    # We have experiment code already set up
     #
-    # expecting (UPS 6.0.8):
-    # icarusalg v09_06_00 -f Linux64bit+3.10-2.17 -q e19:prof -z /cvmfs/icarus.opensciencegrid.org/products/icarus
-    read PkgName PkgVersion Dummy PkgFlavor Dummy PkgDatabase Dummy PkgQualifiers <<< "${!ExpSetupVarName}"
+    # Just check that the version is not unexpected
+    #
+    read PkgName PkgVersion PkgQualifiers <<< "$ExpSetupInfo"
     echo "${ExpName} code version: ${PkgName} ${PkgVersion} -q ${PkgQualifiers}"
     
-    if [[ -n "$ExpCodeVersion" ]]; then 
-      
-      if [[ "$ExpCodeVersion" != "$PkgVersion" ]]; then
-        echo "ERROR: ${ExpCode} ${PkgVersion} already set up, can't set up version ${ExpCodeVersion} now." >&2
-        return 1
-      fi
-      if [[ -n "$Qualifiers" ]]; then
-        StrictQualifiers="+${Qualifiers//:/:+}"
-        
-        # doing this again will ensure that the qualifiers are the same
-        ICARUSgallerySetup_upssetup -B "$ExpCode" "$ExpCodeVersion" -q "$StrictQualifiers" || return $?
-        
-      else
-        Qualifiers="$PkgQualifiers"
-        StrictQualifiers="+${Qualifiers//:/+:}"
-      fi
+    if [[ -n "$ExpCodeVersion" ]] && [[ "$ExpCodeVersion" != "$PkgVersion" ]]; then
+      echo "ERROR: ${ExpCode} ${PkgVersion} already set up, can't set up version ${ExpCodeVersion} now." >&2
+      return 1
     fi
+    if [[ -n "$Qualifiers" ]]; then
+      StrictQualifiers="+${Qualifiers//:/:+}"
+      
+      # doing this again will ensure that the qualifiers are the same
+      ICARUSgallerySetup_upssetup -B "$ExpCode" "$ExpCodeVersion" -q "$StrictQualifiers" || return $?
+      
+    else
+      Qualifiers="$PkgQualifiers"
+      StrictQualifiers="+${Qualifiers//:/+:}"
+    fi
+  elif [[ -n "$ExpCodeVersion" ]] && [[ -n "${Qualifiers:=$MRB_QUALS}" ]]; then
+    #
+    # if we don't have experiment code package set up,
+    # it's that time now, but we need to know which version
+    #
+    StrictQualifiers="+${Qualifiers//:/:+}"
+    ICARUSgallerySetup_upssetup -B "$ExpCode" "$ExpCodeVersion" -q "$StrictQualifiers" || return $?
   elif [[ -n "$MRB_QUALS" ]]; then
-    local -r ExpVersionVarName="$(tr [a-z] [A-Z] <<< "$ExpCode" )_VERSION"
+    #
+    # since no version (or no qualifier) was specified, we won't pull the experiment code from UPS
+    # (including any package installed in the MRB_INSTALL area).
+    # Now, while MRB working area is set up,
+    # the experiment code repository may or may not be checked out,
+    # and the build environment may or may not be set up (`mrbsetenv`).
+    # If both conditions are true (experiment code checked out and set up)
+    # we don't need (and must not) set up anything.
+    #
+    local -r ExpVersionVarName="${ExpCode^^}_VERSION"
     if [[ -z "${!ExpVersionVarName}" ]]; then
       cat <<EOM >&2
 To set up gallery environment, you either need:
 a) ${ExpCode} already set up (it's not), or
 b) to specify the ${ExpCode} version and qualifiers (you didn't);
-   for example: source ${BASH_SOURCE[0]} v09_06_00 e19:prof
+   for example: source ${BASH_SOURCE[0]} v09_65_02 e20:prof
 c) to have a MRB area set up (which you have) with ${ExpCode} checked out and with \`mrbsetenv\` run (which you don't)
 EOM
       return 1
@@ -255,109 +314,23 @@ EOM
     echo "${ExpName} code version: ${ExpCode} ${ExpCodeVersion} -q ${Qualifiers} in MRB development area"
     
   else
-    #
-    # if we don't have experiment code package set up, it's that time now, but we need to know which version
-    #
-    
-    if [[ -z "$ExpCodeVersion" ]] || [[ -z "$Qualifiers" ]]; then
-      cat <<EOM >&2
+    cat <<EOM >&2
 To set up gallery environment, you either need:
 a) ${ExpCode} already set up (it's not), or
 b) to specify the ${ExpCode} version and qualifiers (you didn't);
-   for example: source ${BASH_SOURCE[0]} v06_53_00 e14:prof
+   for example: source ${BASH_SOURCE[0]} v06_53_00 e20:prof
 c) to have a MRB area set up (which you don't have) with ${ExpCode} checked out (and with \`mrbsetenv\` run)
 EOM
-      return 1
-    fi
-    
-    StrictQualifiers="+${Qualifiers//:/:+}"
-    ICARUSgallerySetup_upssetup -B "$ExpCode" "$ExpCodeVersion" -q "$StrictQualifiers" || return $?
-    
-  fi
-  
-  #
-  # which reference package versions do we depend on?
-  #
-  local -a ReferencePkgVersions
-  local -a ReferencePkgQualifiers
-  for ReferencePkg in "${SortedReferencePkgs[@]}" ; do
-    local ReferencePkgSetupVarName="SETUP_$(tr [a-z] [A-Z] <<< "$ReferencePkg")"
-    if [[ -z "${!ReferencePkgSetupVarName}" ]]; then
-      echo "ERROR: configuration mess! the reference UPS product ${ReferencePkg} is not set up (or at least, there is no '${ReferencePkgSetupVarName}' variable in the environment)." >&2
-      return 1
-    fi
-    
-    # expecting (UPS 5.2.0):
-    # canvas v3_00_02 -f Linux64bit+2.6-2.12 -q e14:nu:prof -z /grid/fermiapp/products/larsoft
-    read PkgName PkgVersion Dummy PkgFlavor Dummy PkgDatabase Dummy PkgQualifiers <<< "${!ReferencePkgSetupVarName}"
-    ReferencePkgVersions+=( "$PkgVersion" )
-    ReferencePkgQualifiers+=( "$PkgQualifiers" )
-    # echo "Requiring ${ReferencePkg} version: ${PkgName} ${PkgVersion} -q ${PkgQualifiers}"
-  done
-  
-  #
-  # which target package depends from the reference package we have set up?
-  #
-  # expecting (UPS 5.2.0):
-  # "larsoftobj" "v1_29_00" "Darwin64bit+16" "debug:e14" ""
-  local TargetPkgVersion=""
-  local TargetPkgQualifiers=""
-  
-  local -i iReference
-  while read PkgName PkgVersion PkgFlavor PkgQualifiers Dummy ; do
-    local StrictPkgQualifiers="+${PkgQualifiers//:/:+}"
-    # echo "Testing ${TargetPkg} ${PkgVersion} -q ${StrictPkgQualifiers}"
-    
-    # to speed up the N^2 search, we have sorted the dependencies
-    iReference=0
-    
-    local DepName DepVersion DepQuals
-    while read DepName DepVersion DepQuals ; do
-      
-      # is this the dependency we are looking for now? (if not, check the next dependency of this target version)
-      DepName="${DepName//\"/}"
-      [[ "$DepName" == "${SortedReferencePkgs[iReference]}" ]] || continue
-      
-      # echo "Comparing dependency ${DepName} ${DepVersion} ${DepQuals} with the required ${ReferencePkgVersions[iReference]} ${ReferencePkgQualifiers[iReference]}"
-      
-      # is this the desired version? (if not, the target version is wrong)
-      DepVersion="${DepVersion//\"/}"
-      [[ "$DepVersion" == "${ReferencePkgVersions[iReference]}" ]] || continue 2
-      
-      # has this the desired qualifiers? (if not, the target version is wrong)
-      DepQuals="${DepQuals//\"/}"
-      [[ "$DepQuals" == "${ReferencePkgQualifiers[iReference]}" ]] || continue 2
-      
-      # echo " => ${TargetPkg} ${PkgVersion} -q ${StrictPkgQualifiers} has the required ${DepName} (${DepVersion} ${DepQuals})"
-      
-      # this dependency is fulfilled; let's go to the next
-      let ++iReference
-      [[ $iReference -ge $nReferencePkgs ]] && break
-      
-    done < <(ups depend -K 'PRODUCT:VERSION:QUALIFIERS' "$TargetPkg" "$PkgVersion" -q "$PkgQualifiers" | sort)
-    
-    # have we found all the dependencies we were looking for? (if not, the target version is wrong)
-    [[ $iReference -ge $nReferencePkgs ]] || continue
-    
-    TargetPkgVersion="$PkgVersion"
-    TargetPkgQualifiers="$PkgQualifiers"
-    break
-    
-  done < <(ups list -aK+ "$TargetPkg" | sort -r -k 2 | tr -d '"')
-  
-  if [[ -z "$TargetPkgVersion" ]]; then
-    echo "ERROR: can't find the ${TargetPkg} version depending on the reference products:"
-    for (( iReference = 0 ; iReference < $nReferencePkgs ; ++iReference )); do
-      echo " * ${ReferencePkgs[iReference]} ${ReferencePkgVersions[iReference]} (qualifiers '${ReferencePkgQualifiers[iReference]}')" >&2
-    done
     return 1
+    
   fi
   
-  local StrictTargetPkgQualifiers="+${TargetPkgQualifiers//:/:+}"
-  ICARUSgallerySetup_upssetup -B "$TargetPkg" "$TargetPkgVersion" -q "$StrictTargetPkgQualifiers" || return $?
+  #
+  # build environment setup
+  #
   
-  # set up cmake only if not yet there
-  [[ -z "$SETUP_CMAKE" ]] && ICARUSgallerySetup_setupLatest cmake
+  # set up cetmodules only if not yet there
+  ICARUSgallerySetup_FormatSetupPackageInfo 'cetmodules' '' || ICARUSgallerySetup_setupLatest cetmodules
   
   unset DoICARUSgallerySetup
 } # DoICARUSgallerySetup()
