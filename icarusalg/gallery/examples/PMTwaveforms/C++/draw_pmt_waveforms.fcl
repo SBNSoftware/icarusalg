@@ -1,0 +1,36 @@
+#
+# Configuration for DrawPMTwaveforms:
+# 
+# Draws PMT waveforms in groups of 30.
+#
+
+
+#include "messages_icarus.fcl"
+
+services: {
+  message: @local::icarus_message_services_interactive
+}
+
+analysis: {
+  
+//   skipEvents: 8
+  maxEvents: 3
+  
+  histogramFile: "PMTwaveforms.root"
+  
+  analysis: {
+    
+    TriggerTag: "daqTrigger"
+    
+    // slightly misalign the plots to suggest the actual disposition of ICARUS PMT
+    StaggerPlots: 0.05
+    TimeSlices: [ { Lower: "1470 us"  Upper: "1520 us" } ]
+    
+    Baseline: {
+      SubtractBaseline:  true
+      EstimationSamples: 200
+    }
+    
+  } # analysis
+  
+} # analysis

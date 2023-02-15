@@ -69,7 +69,7 @@
 
 // C/C++ standard libraries
 // #include <string>
-#include <algorithm> // std::accumulate()
+#include <numeric> // std::accumulate()
 #include <vector>
 #include <array>
 #include <memory> // std::make_unique()
