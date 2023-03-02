@@ -17,7 +17,7 @@
 
 // LArSoft libraries
 #include "larcorealg/TestUtils/geometry_unit_test_base.h"
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
 
 // C/C++ standard libraries
 #include <string>
@@ -30,7 +30,6 @@ namespace icarus {
     
     /** ************************************************************************
      * @brief Class holding the configuration for a ICARUS fixture
-     * @tparam CHANNELMAP the class used for channel mapping
      * @see BasicGeometryEnvironmentConfiguration
      *
      * This class needs to be fully constructed by the default constructor
@@ -39,18 +38,16 @@ namespace icarus {
      * that can store an instance of it and extract configuration information
      * from it.
      * 
-     * This class should be used with `icarus::ICARUSChannelMapAlg`.
+     * This class should be used with `icarus::ICARUSWireReadoutGeom`.
      * 
      * We reuse BasicGeometryEnvironmentConfiguration as base class and then we
      * fix its setup.
      */
-    template <typename CHANNELMAP = icarus::ICARUSChannelMapAlg>
     struct IcarusGeometryEnvironmentConfiguration:
-      public ::testing::BasicGeometryEnvironmentConfiguration<CHANNELMAP>
+      public ::testing::BasicGeometryEnvironmentConfiguration
     {
       // remember that BasicGeometryEnvironmentConfiguration is not polymorphic
-      using base_t
-        = ::testing::BasicGeometryEnvironmentConfiguration<CHANNELMAP>;
+      using base_t = ::testing::BasicGeometryEnvironmentConfiguration;
       
       /// Default constructor
       IcarusGeometryEnvironmentConfiguration() { IcarusDefaultInit(); }

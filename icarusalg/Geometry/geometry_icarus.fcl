@@ -80,8 +80,8 @@ BEGIN_PROLOG
 
 icarus_geometry_template: {
   SurfaceY:        6.9e2    # in cm, vertical distance to the surface
-  Name:            "icarus_v2" # see ICARUS wiki for a list
-  DisableWiresInG4: true
+  Name:      "icarus_v4"  # see ICARUS wiki for a list
+  GDML:      "icarus_complete_20220518_overburden.gdml"
 } # icarus_geometry_template
 
 
@@ -100,12 +100,15 @@ icarus_geometry_template: {
 ###
 
 #
-# ExptGeoHelperInterface
+# WireReadout
 #
-icarus_standard_geometry_helper: {
-  service_provider: IcarusGeometryHelper
+icarus_standard_wire_readout: {
+  service_provider: IcarusWireReadout
+  SortingParameters: {
+    tool_type: WireReadoutSorterStandard
+  }
   Mapper: {
-    tool_type: "ICARUSsplitInductionChannelMapSetupTool"
+    tool_type: "ICARUSsplitInductionWireReadoutSetupTool"
   
     WirelessChannels: {
       
@@ -128,7 +131,7 @@ icarus_standard_geometry_helper: {
     
   } # Mapper
   
-} # icarus_standard_geometry_helper
+} # icarus_standard_wire_readout
 
 
 ################################################################################
@@ -155,12 +158,20 @@ icarus_standard_geometry_helper: {
 icarus_standard_geometry: {
   @table::icarus_geometry_template
 
-  Name: "icarus_v4"
-  GDML: "icarus_complete_20220518_overburden.gdml"
-  ROOT: "icarus_complete_20220518_overburden.gdml"
+  SortingParameters: {
+    tool_type: GeoObjectSorterPMTasTPC
+  }
+} # icarus_standard_geometry
 
-  ChannelMapping: @local::icarus_standard_geometry_helper.Mapper
+#
+# AuxDetGeometry service configuration:
+#
+icarus_standard_auxdetgeometry: {
+  @table::icarus_geometry_template
 
+  SortingParameters: {
+    tool_type: AuxDetGeoObjectSorterICARUS
+  }
 } # icarus_standard_geometry
 
 #
@@ -168,8 +179,9 @@ icarus_standard_geometry: {
 #
 icarus_standard_geometry_services: {
 
+  AuxDetGeometry: @local::icarus_standard_auxdetgeometry
   Geometry:               @local::icarus_standard_geometry
-  ExptGeoHelperInterface: @local::icarus_standard_geometry_helper
+  WireReadout: @local::icarus_standard_wire_readout
   GeometryConfigurationWriter: {}
 
 } # icarus_standard_geometry_services
@@ -211,7 +223,7 @@ icarus_geometry_services: @local::icarus_standard_geometry_services
 icarus_geometry: @local::icarus_geometry_services.Geometry
 icarus_geo:      @local::icarus_geometry # backward compatibility
 
-icarus_geometry_helper:  @local::icarus_geometry_services.ExptGeoHelperInterface
+icarus_wire_readout:  @local::icarus_geometry_services.WireReadout
 
 
 ################################################################################
@@ -231,11 +243,13 @@ icarus_geometry_helper:  @local::icarus_geometry_services.ExptGeoHelperInterface
 ### Base legacy configuration, only used for FHiCL stability; i.e., if changed,
 ### all existing legacy configurations need to explicitly revert the change.
 ###
-icarus_legacy_base_geometry_helper: {
-  service_provider: IcarusGeometryHelper
+icarus_legacy_base_wire_readout: {
+  service_provider: IcarusWireReadout
+  SortingParameters: {
+    tool_type: WireReadoutSorterStandard
+  }
   Mapper: {
-    tool_type: "ICARUSsplitInductionChannelMapSetupTool"
-  
+    tool_type: "ICARUSsplitInductionWireReadoutSetupTool"
     WirelessChannels: {
       
       FirstInductionPreChannels:        0
@@ -256,7 +270,7 @@ icarus_legacy_base_geometry_helper: {
     } # WirelessChannels
     
   } # Mapper
-} # icarus_legacy_base_geometry_helper
+} # icarus_legacy_base_wire_readout
 
 icarus_legacy_base_geometry: {
 
@@ -267,15 +281,14 @@ icarus_legacy_base_geometry: {
   GDML: @nil
   ROOT: @nil
 
-  ChannelMapping: @local::icarus_legacy_base_geometry_helper.Mapper
+  ChannelMapping: @local::icarus_legacy_base_wire_readout.Mapper
   
 } # icarus_legacy_base_geometry
 
 icarus_legacy_base_geometry_services: {
   Geometry:               @local::icarus_legacy_base_geometry
-  ExptGeoHelperInterface: @local::icarus_legacy_base_geometry_helper
+  WireReadout: @local::icarus_legacy_base_wire_readout
   GeometryConfigurationWriter: {}
-
 } # icarus_legacy_base_geometry_services
 
 
@@ -347,7 +360,7 @@ icarus_geometry_services_legacy_icarus_splitwires:
 ### These are old names for the configuration presets.
 ###
 icarus_split_induction_overburden_geometry: @local::icarus_standard_geometry
-icarus_split_induction_geometry_helper: @local::icarus_standard_geometry_helper
+icarus_split_induction_wire_readout: @local::icarus_standard_wire_readout
 icarus_split_induction_overburden_geometry_services: @local::icarus_standard_geometry_services
 
 ################################################################################
