@@ -296,32 +296,32 @@ class lar::util::TrackTimeInterval {
   
   
   /**
+   * @brief Merges two ranges from the opposite sides of a cathode.
+   * @param range1 allowed time range from one side of the cathode
+   * @param range2 allowed time range from the other side of the cathode
+   * @return a single allowed time range
+   * 
+   * If both ranges are valid, the combination assumes that the actual time is
+   * locked and it is the time bringing both sides on the cathode (may result
+   * in a range of times).
+   * Otherwise, the range that is valid is returned as is.
+   */
+  TimeRange mergeCathodeRanges
+    (TimeRange const& range1, TimeRange const& range2) const;
+  
+  /**
    * @brief Merges the ranges from all the TPC sets in the detector.
    * @param TPCsetRanges container of allowed range from each TPC set
-   * @return a single allowed time range
+   * @return a combined range
    * 
    * As an input, each TPC set contributes its hypothesis of allowed time range;
    * that hypothesis is invalid (`!isValid()`) if there was no information in
    * the TPC set.
    * The combination assumes that all the hits belong to the same activity and
    * that the time of all that activity is only one.
-   * Contributions from different cryostats are intersected, while within each
-   * cryostat the combination is made in a detector-specific way (see
-   * `mergeTPCsetRanges_SBN()`.
-   */
-  TimeRange mergeCathodeRanges
-    (TimeRange const& range1, TimeRange const& range2) const;
-  
-  /**
-   * @brief Merges two ranges from the opposite sides of a cathode.
-   * @param range1 allowed time range from one side of the cathode
-   * @param range2 allowed time range from the other side of the cathode
-   * @return a combined range
-   * 
-   * If both ranges are valid, the combination assumes that the actual time is
-   * locked and it is the time bringing both sides on the cathode (may result
-   * in a range of times).
-   * Otherwise, the range that is valid is returned as is.
+   * Contributions from different cryostats are intersected, and within each
+   * cryostat the combination of the two TPC sets is also intersection of the
+   * two (see `mergeCathodeRanges()`).
    */
   TimeRange mergeTPCsetRanges_SBN
     (readout::TPCsetDataContainer<TimeRange> const& TPCsetRanges) const;
