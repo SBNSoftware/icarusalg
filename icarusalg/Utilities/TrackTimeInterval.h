@@ -40,8 +40,29 @@ namespace lar::util {
 /**
  * @brief Returns the allowed time interval for TPC activity.
  * 
+ * This simple utility returns a range of times
+ * (@ref DetectorClocksElectronicsTime "electronics time scale")
+ * the track may have been detected at, given the time of its associated hits.
  * 
- * Example of usage:
+ * The keyword is "simple": the algorithm just compares hit times to the nominal
+ * drift velocity and detector coordinates, and draws its conclusions from
+ * there. That means that it does not take advantage of a precise location of
+ * the cathode (LArSoft geometry does not provide one), nor of the anode (the
+ * first charge readout plane is used as reference), not of deformations in the
+ * actual geometry of the detector nor in the drift field and velocity.
+ * **The advise is to allow a forgiving margin when using the range returned by
+ * this utility** (the `contains()` method of the class used to report the
+ * result, `TimeRange`, pointedly and deliberately includes arguments for
+ * margins).
+ * 
+ * Despite the "track` in the name, the interface allows to specify a collection
+ * of hits, or hit times, but not a `recob::Track` (associated hits needs to be
+ * discovered before the call).
+ * 
+ * 
+ * Example of usage
+ * -----------------
+ * 
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
  * geo::GeometryCore const& geom = *(lar::providerFrom<geo::Geometry const>());
  * detinfo::DetectorTimings const detTimings
