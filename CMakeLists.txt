@@ -31,7 +31,8 @@ cet_cmake_env()
 cet_set_compiler_flags(DIAGS CAUTIOUS
   WERROR
   NO_UNDEFINED
-  EXTRA_FLAGS -pedantic -I $ENV{CLANG_FQ_DIR}/include/c++/v1
+  EXTRA_FLAGS -pedantic
+              $<$<CXX_COMPILER_ID:Clang>:-Wno-implicit-const-int-float-conversion>
 )
 
 cet_report_compiler_flags(REPORT_THRESHOLD VERBOSE)
