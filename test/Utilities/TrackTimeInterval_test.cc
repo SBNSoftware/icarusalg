@@ -379,7 +379,7 @@ BOOST_AUTO_TEST_CASE(timeRangeOfHits_singleTPCset)
     
     std::default_random_engine engine; // default seed, not that random
     
-    for (auto const [ Xa, Xb ]: {
+    for (auto const & [ Xa, Xb ]: {
         std::make_pair(0.2, 0.6)
       , std::make_pair(0.5, 0.8)
       , std::make_pair(-0.2, 0.1)
