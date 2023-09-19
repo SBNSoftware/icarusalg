@@ -53,7 +53,7 @@ MCTruthParticleList MCTruthParticleList::MakeCopy() const
     MCTruthParticleList list;
 
     // Copy each entry in the other MCTruthParticleList.
-    for (std::pair<int, const simb::MCParticle*> const& partInfo: m_MCTruthParticleList)
+    for (std::pair<int, const simb::MCParticle*> const partInfo: m_MCTruthParticleList)
         list.insert(partInfo.second? new simb::MCParticle(*(partInfo.second)): nullptr);
     
     list.m_archive = m_archive;
