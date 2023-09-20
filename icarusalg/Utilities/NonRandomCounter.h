@@ -71,7 +71,7 @@ class util::NonRandomCounter: public CLHEP::HepRandomEngine {
       // (aka 'unsigned long') to 'double' changes value from 
       // 18446744073709551615 to 18446744073709551616
       return static_cast<double>(++count)
-        / std::numeric_limits<unsigned long>::max();
+        / (double)std::numeric_limits<unsigned long>::max();
     }
 
 
