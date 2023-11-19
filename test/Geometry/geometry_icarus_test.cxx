@@ -13,12 +13,16 @@
  */
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 #include "test/Geometry/geometry_unit_test_icarus.h"
+#include "test/Geometry/ChannelMapConfig.h"
 
 // LArSoft libraries
 #include "larcorealg/test/Geometry/GeometryTestAlg.h"
 #include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/StandaloneGeometrySetup.h"
 
 // utility libraries
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -33,8 +37,7 @@
 // we use an existing class provided for this purpose, since our test
 // environment allows us to tailor it at run time.
 using IcarusGeometryConfiguration
-  = icarus::testing::IcarusGeometryEnvironmentConfiguration
-    <icarus::ICARUSChannelMapAlg>;
+  = icarus::testing::IcarusGeometryEnvironmentConfiguration;
 
 /*
  * GeometryTesterFixture, configured with the object above, is used in a
@@ -44,7 +47,7 @@ using IcarusGeometryConfiguration
  * - `geo::GeometryCore const* GlobalGeometry()` (static member)
  */
 using IcarusGeometryTestEnvironment
-  = testing::GeometryTesterEnvironment<IcarusGeometryConfiguration>;
+  = testing::GeometryTesterEnvironment<IcarusGeometryConfiguration, icarus::GeoObjectSorterPMTasTPC>;
 
 
 //------------------------------------------------------------------------------
@@ -97,25 +100,29 @@ int main(int argc, char const** argv) {
   // testing environment setup
   //
   IcarusGeometryTestEnvironment TestEnvironment(config);
+  using namespace lar::standalone;
+  auto const wireReadoutAlg =
+    SetupReadout<geo::WireReadoutSorterICARUS, icarus::ICARUSWireReadoutGeom>(wireReadoutConfig(TestEnvironment),
+                                                                              TestEnvironment.Geometry());
+  auto const auxDetGeom = SetupAuxDetGeometry(TestEnvironment.ServiceParameters("AuxDetGeometry"));
   
   //
   // run the test algorithm
   //
   
-  // 1. we initialize it from the configuration in the environment,
-  geo::GeometryTestAlg Tester(TestEnvironment.TesterParameters());
+  // 1. we initialize it from the environment,
+  geo::GeometryTestAlg Tester(TestEnvironment.Geometry(),
+                              wireReadoutAlg.get(),
+                              auxDetGeom.get(),
+                              TestEnvironment.TesterParameters());
   
-  // 2. we set it up with the geometry from the environment
-  Tester.Setup(*TestEnvironment.Geometry());
-  
-  // 3. then we run it!
+  // 2. then we run it!
   unsigned int nErrors = Tester.Run();
   
-  // 4. And finally we cross fingers.
+  // 3. And finally we cross fingers.
   if (nErrors > 0) {
     mf::LogError("geometry_test_ICARUS") << nErrors << " errors detected!";
   }
   
   return nErrors;
 } // main()
-

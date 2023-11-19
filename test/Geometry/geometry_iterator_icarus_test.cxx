@@ -13,7 +13,10 @@
 #define BOOST_TEST_MODULE GeometryIteratorTestICARUS
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
+#include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
+#include "test/Geometry/ChannelMapConfig.h"
 
 // LArSoft libraries
 #include "test/Geometry/geometry_unit_test_icarus.h"
@@ -31,10 +34,7 @@
 // We wrap it in testing::BoostCommandLineConfiguration<> so that it can learn
 // the configuration file name from the command line.
 struct IcarusGeometryConfiguration:
-  public testing::BoostCommandLineConfiguration<
-    icarus::testing::IcarusGeometryEnvironmentConfiguration
-      <icarus::ICARUSChannelMapAlg>
-    >
+  public testing::BoostCommandLineConfiguration<icarus::testing::IcarusGeometryEnvironmentConfiguration>
 {
   /// Constructor: overrides the application name; ignores command line
   IcarusGeometryConfiguration()
@@ -47,16 +47,15 @@ struct IcarusGeometryConfiguration:
  * It provides:
  * - `Tester`, a configured instance of the test algorithm.
  */
-class IcarusGeometryIteratorTestFixture:
-  private testing::GeometryTesterEnvironment<IcarusGeometryConfiguration>
+struct IcarusGeometryIteratorTestFixture:
+  testing::GeometryTesterEnvironment<IcarusGeometryConfiguration, icarus::GeoObjectSorterPMTasTPC>
 {
-    public:
-  geo::GeometryIteratorTestAlg Tester;
-  
-  /// Constructor: initialize the tester with the Geometry from base class
-  IcarusGeometryIteratorTestFixture(): Tester(Geometry())
-    {}
-
+  std::unique_ptr<geo::WireReadoutGeom> WireReadout{
+    std::make_unique<icarus::ICARUSWireReadoutGeom>(
+       wireReadoutConfig(*this),
+       Geometry(),
+       std::make_unique<geo::WireReadoutSorterICARUS>())};
+  geo::GeometryIteratorTestAlg Tester{Geometry(), WireReadout.get()};
 }; // class IcarusGeometryIteratorTestFixture
 
 
