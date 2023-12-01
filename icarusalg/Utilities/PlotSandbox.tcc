@@ -527,7 +527,10 @@ Obj* icarus::ns::util::PlotSandbox<DirectoryBackend>::acquire(
 {
   std::string const& newName = name.empty()? obj->GetName(): name;
   std::string const& newTitle = title.empty()? obj->GetTitle(): title;
-  return make<Obj>(newName, newTitle, NoNameTitle, std::move(*(obj.release())));
+  // object will be deleted, but its content will have been moved away already
+  std::unique_ptr<Obj> local{ std::move(obj) };
+  // problem: ROOT objects don't move that well
+  return make<Obj>(newName, newTitle, NoNameTitle, std::move(*local));
 } // icarus::ns::util::PlotSandbox::acquire()
 
 
