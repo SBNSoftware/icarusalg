@@ -207,6 +207,7 @@ auto opdet::SharedWaveformBaseline::operator()
       end = begin + fParams.nSample / 2;
        */
       
+      continue;
     } // if
     
     //
