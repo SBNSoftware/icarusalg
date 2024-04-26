@@ -170,7 +170,12 @@ def makeEvent(
 # makeEvent()
 
 
-def forEach(event):
+def forEach(
+  event,
+  fromStart: "always restarts from the beginning of the dataset" = True,
+  maxEvents: "stop after processing this many events (None = all)" = None,
+  skipEvents: "skip these many events at the beginning of the dataset" = 0,
+  ):
   """
   Simplifies sequential event looping.
   
@@ -178,18 +183,40 @@ def forEach(event):
   Therefore, it has side effects.
   The function returns `event` itself, after it has set to the next available
   event.
+  Normally the function restarts from the beginning of the event list.
+  If `fromStart` is `False`, though, it will start after the last event
+  processed by `event`.
+  A number of entries to skip (either from the start or from the current event,
+  depending on the value of `fromStart`) and a maximum number of events to
+  process can be specified. However, there is no feedback on whether processing
+  stopped because of a reached limit or because of no more events are available.
   
   This function is actually a generator.
   
   Example of loop:
       
-      for iEvent, event in enumerate(forEach(event)):
+      for iEvent, event in enumerate(forEach(event, maxEvents=5)):
         ...
       
-  
+  will process up to 5 events from the start of the sample;
+      
+      for iEvent, event in enumerate(forEach(event, maxEvents=5, skipEvents=8), 8):
+        ...
+      
+  will process events from 8 to 12 (included) at most; `iEvent` starts from `8`
+  because we explicitly requested that in the `enumerate()` call, or else it
+  would have started from `0` (i.e. `enumerate()` does not know about the events
+  being skipped).
   """
-  while (not event.atEnd()):
+  if fromStart:
+    if skipEvents > 0: event.goToEntry(skipEvents)
+    else:              event.toBegin()
+  elif skipEvents > 0:
+    for _ in range(skipEvents): event.next() # probably slower than goToEntry()
+  nEvents = 0
+  while (not event.atEnd() and ((maxEvents is None) or (nEvents < maxEvents))):
     yield event
+    nEvents += 1
     event.next()
   # while
 # forEach()

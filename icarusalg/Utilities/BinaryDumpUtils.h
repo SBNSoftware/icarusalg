@@ -19,6 +19,10 @@
 // -----------------------------------------------------------------------------
 namespace icarus::ns::util::details {
   
+  /// Digits used for the default dumping.
+  inline constexpr char Digits[] = "0123456789abcdef";
+  inline constexpr char DIGITS[] = "0123456789ABCDEF";
+  
   // --- BEGIN -- Wrapping objects ---------------------------------------------
   /**
    * @name Wrapping binary objects
@@ -36,13 +40,16 @@ namespace icarus::ns::util::details {
    * @tparam Tag a type to make a template class instance unique
    * @tparam T type of the data wrapped
    * @tparam Bits size of data in `T` in bits
+   * @tparam Digits characters to represent each digit
    * 
    * This template is used to implement other wrappers.
    * 
    * The role of `Tag` is just to allow distinguishing template instances with
    * the same `T` (see for example `BinObj` and `HexObj`).
    */
-  template <typename Tag, typename T, unsigned int const Bits = (8*sizeof(T))>
+  template <
+    typename Tag, typename T, unsigned int const Bits = (8*sizeof(T)),
+    const char* Digits = DIGITS>
   struct BitObjHolder {
     T const data;
     static constexpr unsigned int bits { Bits };
@@ -53,19 +60,25 @@ namespace icarus::ns::util::details {
   struct BinObjTag {}; ///< Tag object for `BinObj`.
   
   /// Holder for data to be presented in binary format (base 2).
-  template <typename T, unsigned int const Bits = (8*sizeof(T))>
-  struct BinObj: public BitObjHolder<BinObjTag, T, Bits>
-    { using BitObjHolder<BinObjTag, T, Bits>::BitObjHolder; };
+  template <
+    typename T, unsigned int const Bits = (8*sizeof(T)),
+    const char* Digits = DIGITS
+    >
+  struct BinObj: public BitObjHolder<BinObjTag, T, Bits, Digits>
+    { using BitObjHolder<BinObjTag, T, Bits, Digits>::BitObjHolder; };
 
   struct HexObjTag {}; ///< Tag object for `HexObj`.
   /// Holder for data to be presented in hexadecimal format (base 16).
-  template <typename T, unsigned int const Bits = (8*sizeof(T))>
-  struct HexObj: public BitObjHolder<HexObjTag, T, Bits>
-    { using BitObjHolder<HexObjTag, T, Bits>::BitObjHolder; };
+  template <
+    typename T, unsigned int const Bits = (8*sizeof(T)),
+    const char* Digits = DIGITS
+    >
+  struct HexObj: public BitObjHolder<HexObjTag, T, Bits, Digits>
+    { using BitObjHolder<HexObjTag, T, Bits, Digits>::BitObjHolder; };
 
   /**
    * @brief Wrapper to have data printed as hexadecimal dump.
-   * @param Atom base type of the dump
+   * @tparam Atom base type of the dump
    * 
    * This record points to the data to be dumped, and it also include some
    * dumping parameters:
@@ -75,6 +88,7 @@ namespace icarus::ns::util::details {
    * The data is interpreted as a sequence of `Atom` types.
    * Supported `Atom` types are unsigned integral types (`std::uint8_t`, 
    * `std::uint16_t`, etc.). Each atom is dumped as an `HexObj`.
+   * 
    */
   template <typename Atom>
   struct HexDumper {
@@ -82,9 +96,13 @@ namespace icarus::ns::util::details {
     Atom const* const data;
     std::size_t const size;
     unsigned int const columns { 16U };
+    const char* digits = DIGITS;
     
-    HexDumper(Atom const* data, std::size_t size, unsigned int columns = 16U)
-      : data(data), size(size), columns(columns) {}
+    HexDumper(
+      Atom const* data, std::size_t size, unsigned int columns = 16U,
+      const char* digits = DIGITS
+      )
+      : data(data), size(size), columns(columns), digits(digits) {}
     
   }; // HexDumper
   
@@ -122,9 +140,10 @@ namespace icarus::ns::util::details {
   template <typename T>
   constexpr T fourMSBmask();
   
-  /// Prints a zero-padded integral `value` into `out`.
+  /// Prints a zero-padded integral `value` into `out` with the specified
+  /// `digits`.
   template <typename T>
-  void printHex(std::ostream& out, T value);
+  void printHex(std::ostream& out, T value, const char* digits = DIGITS);
   
   
   // --- BEGIN -- dump operators -----------------------------------------------
@@ -145,8 +164,9 @@ namespace icarus::ns::util::details {
    * of bits, and `b` are bit values, `0` or `1`, the first being the most
    * significant bit).
    */
-  template <typename T, unsigned int Bits>
-  std::ostream& operator<< (std::ostream& out, BinObj<T, Bits> const& data);
+  template <typename T, unsigned int const Bits, const char* Digits>
+  std::ostream& operator<<
+    (std::ostream& out, BinObj<T, Bits, Digits> const& data);
   
   
   /**
@@ -172,8 +192,9 @@ namespace icarus::ns::util::details {
    * of bits, and `b` are bit values, `0` or `1`, the first being the most
    * significant bit).
    */
-  template <typename T>
-  std::ostream& operator<< (std::ostream& out, HexObj<T> const& data);
+  template <typename T, unsigned int const Bits, const char* Digits>
+  std::ostream& operator<<
+    (std::ostream& out, HexObj<T, Bits, Digits> const& data);
   
   
   /**
@@ -191,7 +212,8 @@ namespace icarus::ns::util::details {
    * The table is written on a new line, and the line is ended after the table.
    */
   template <typename Atom>
-  std::ostream& operator<< (std::ostream& out, HexDumper<Atom> const& data);
+  std::ostream& operator<<
+    (std::ostream& out, HexDumper<Atom> const& data);
 
   /// Dumps a value padding with `0` via `ZeroPadder` wrapper.
   template <typename T>
@@ -220,6 +242,7 @@ namespace icarus::ns::util {
   
   /**
    * @brief Returns a wrapper to print the specified data in binary format.
+   * @tparam Digits the set of (two) digits to be used to represent bit values
    * @tparam T type of datum to be printed
    * @param value the value to be printed
    * @see `icarus::ns::util::details::operator<< (std::ostream&, icarus::ns::util::details::BinObj<T, Bits> const&)`   * 
@@ -232,12 +255,13 @@ namespace icarus::ns::util {
    * (assuming the representation of `int` is 32 bit) and `(8) 1010 1010` on the
    * second line.
    */
-  template <typename T>
-  constexpr details::BinObj<T> bin(T value);
+  template <const char* Digits = details::DIGITS, typename T>
+  constexpr details::BinObj<T, sizeof(T)*8, Digits> bin(T value);
 
   /**
    * @brief Returns a wrapper to print the specified data in binary format.
-   * @tparam Bits number of bits to print out of the type `T`
+   * @tparam Bits (mandatory) number of bits to print out of the type `T`
+   * @tparam Digits the set of (two) digits to be used to represent bit values
    * @tparam T type of datum to be printed
    * @param value the value to be printed
    * @see `icarus::ns::util::details::operator<< (std::ostream&, icarus::ns::util::details::BinObj<T, Bits> const&)`
@@ -250,8 +274,9 @@ namespace icarus::ns::util {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    * will print `(10) 00 1010 1010`.
    */
-  template <std::size_t Bits, typename T>
-  constexpr details::BinObj<T, Bits> bin(T value);
+  template
+    <unsigned int const Bits, const char* Digits = details::DIGITS, typename T>
+  constexpr details::BinObj<T, Bits, Digits> bin(T value);
 
   /**
    * @brief Returns a wrapper to print the specified data in hex dump format.
@@ -259,6 +284,7 @@ namespace icarus::ns::util {
    * @param data pointer to the data to be printed
    * @param size number of elements to be printed
    * @param columns (default: `16`) atoms per output line
+   * @param digits (default: see `details::DIGITS`) characters for the digits
    * @see `icarus::ns::util::details::operator<< (std::ostream&, icarus::ns::util::details::HexDumper<Atom> const&)`
    * 
    * 
@@ -289,8 +315,10 @@ namespace icarus::ns::util {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
   template <typename Atom>
-  details::HexDumper<Atom> hexdump
-    (Atom const* data, std::size_t size, unsigned int columns = 16U);
+  details::HexDumper<Atom> hexdump(
+    Atom const* data, std::size_t size, unsigned int columns = 16U,
+    const char* digits = details::DIGITS
+    );
 
   /**
    * @brief Returns a wrapper to print the specified data with a field width
@@ -369,17 +397,16 @@ class icarus::ns::util::FormatFlagsGuard {
 
 // -----------------------------------------------------------------------------
 template <typename T>
-void icarus::ns::util::details::printHex(std::ostream& out, T value) {
+void icarus::ns::util::details::printHex
+  (std::ostream& out, T value, const char* digits /* = DIGITS */)
+{
   static_assert(std::is_integral_v<T>, "Only integral types are supported.");
-  
-  // we actually store the null character at the end; it does not really matter
-  constexpr const char HexChars[17U] = "0123456789ABCDEF";
   
   // print nibble by nibble, no spaces, starting from the most significant
   std::size_t nibblesLeft = sizeof(value) * 2U;
   while (nibblesLeft--) {
     std::size_t const digit = (value >> (nibblesLeft * 4U)) & 0xF;
-    out << HexChars[digit];
+    out << digits[digit];
   } // while
 } // icarus::ns::util::details::printHex()
 
@@ -395,9 +422,9 @@ std::ostream& icarus::ns::util::details::operator<<
 
 
 // -----------------------------------------------------------------------------
-template <typename T, unsigned int Bits>
+template <typename T, unsigned int const Bits, const char* Digits>
 std::ostream& icarus::ns::util::details::operator<<
-  (std::ostream& out, BinObj<T, Bits> const& data)
+  (std::ostream& out, BinObj<T, Bits, Digits> const& data)
 {
   static_assert(std::is_integral_v<T>);
   static_assert(Bits > 0U);
@@ -406,20 +433,20 @@ std::ostream& icarus::ns::util::details::operator<<
   T mask = T{ 1 } << (bitsLeft - 1);
   out << "(" << bitsLeft << ") ";
   while (mask) {
-    out << ((data.data & mask)? '1': '0');
+    out.put(Digits[(data.data & mask) != 0]);
     mask >>= 1;
     if (--bitsLeft == 0) break;
-    if ((bitsLeft & 0x03) == 0x00) out << ' ';
+    if ((bitsLeft & 0x03) == 0x00) out.put(' ');
   } // while
   return out;
 } // icarus::ns::util::details::operator<< (icarus::ns::util::details::BinObj)
 
 
 // -----------------------------------------------------------------------------
-template <typename T>
+template <typename T, unsigned int const Bits, const char* Digits>
 std::ostream& icarus::ns::util::details::operator<<
-  (std::ostream& out, HexObj<T> const& data)
-  { printHex(out, data.data); return out; }
+  (std::ostream& out, HexObj<T, Bits, Digits> const& data)
+  { printHex(out, data.data, Digits); return out; }
 
 
 // -----------------------------------------------------------------------------
@@ -431,22 +458,13 @@ std::ostream& icarus::ns::util::details::operator<<
   static constexpr std::size_t AtomChars = sizeof(Atom) * 2;
   static constexpr Blanks<AtomChars> BlankAtom;
   
-  auto const printAtoms = [&out]
+  auto const printAtoms = [&out, digits=data.digits]
     (Atom const* ptr, Atom const* const ptrend, std::ptrdiff_t columns)
     {
-      /*
-      FormatFlagsGuard const outGuard { out };
-      out.setf(std::ios_base::hex, std::ios_base::basefield);
-      out.unsetf(std::ios_base::showbase);
-      out.fill('0');
-      */
       Atom const* cend = ptr + columns;
       while (ptr != cend) {
-        out << ' ';
-        if (ptr < ptrend) {
-          // out << std::setw(AtomChars) << *ptr;
-          printHex(out, *ptr);
-        }
+        out.put(' ');
+        if (ptr < ptrend) printHex(out, *ptr, digits);
         else              out << BlankAtom;
         ++ptr;
       } // while
@@ -465,9 +483,9 @@ std::ostream& icarus::ns::util::details::operator<<
     out << "\n" << std::setw(8) << ((void*) ptr) << " |";
     
     ptr = printAtoms(ptr, ptrend, data.columns - halfColumns);
-    if (data.columns >= 6U) out << ' ';
+    if (data.columns >= 6U) out.put(' ');
     ptr = printAtoms(ptr, ptrend, halfColumns);
-    out << " |";
+    out.put(' ').put('|');
     
   } // while
   
@@ -490,21 +508,25 @@ std::ostream& icarus::ns::util::details::operator<<
 
 
 // -----------------------------------------------------------------------------
-template <typename T>
-constexpr auto icarus::ns::util::bin(T value) -> details::BinObj<T>
-  { return details::BinObj<T>{ std::move(value) }; }
+template <const char* Digits /* = DIGITS */, typename T>
+constexpr auto icarus::ns::util::bin(T value)
+  -> details::BinObj<T, sizeof(T)*8, Digits>
+  { return details::BinObj<T, sizeof(T)*8, Digits>{ std::move(value) }; }
 
-template <std::size_t Bits, typename T>
-constexpr auto icarus::ns::util::bin(T value) -> details::BinObj<T, Bits>
-  { return details::BinObj<T, Bits>{ std::move(value) }; }
+template
+  <unsigned int const Bits, const char* Digits /* = DIGITS */, typename T>
+constexpr auto icarus::ns::util::bin(T value)
+  -> details::BinObj<T, sizeof(T)*8, Digits>
+  { return details::BinObj<T, Bits, Digits>{ std::move(value) }; }
 
 
 // -----------------------------------------------------------------------------
 template <typename Atom>
-auto icarus::ns::util::hexdump
-  (Atom const* data, std::size_t size, unsigned int columns /* = 16U */)
+auto icarus::ns::util::hexdump(
+  Atom const* data, std::size_t size, unsigned int columns /* = 16U */,
+  const char* digits /* = details::DIGITS */)
   -> details::HexDumper<Atom>
-  { return details::HexDumper<Atom>{ data, size, columns }; }
+  { return details::HexDumper<Atom>{ data, size, columns, digits }; }
 
 
 // -----------------------------------------------------------------------------
