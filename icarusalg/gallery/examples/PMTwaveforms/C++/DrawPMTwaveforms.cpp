@@ -426,6 +426,14 @@ class DrawPMTwaveforms {
         Name{ "Threshold" },
         Comment{ "LVDS discrimination threshold, in ADC counts" }
         };
+      fhicl::OptionalAtom<int> BoardChannel {
+        Name{ "BoardChannel" },
+        Comment{ "Channel within the readout board (unused)" }
+        };
+      fhicl::OptionalAtom<int> BoardNumber {
+        Name{ "BoardNumber" },
+        Comment{ "Readout board number (unused)" }
+        };
     }; // ReadoutSettings_t
     
     

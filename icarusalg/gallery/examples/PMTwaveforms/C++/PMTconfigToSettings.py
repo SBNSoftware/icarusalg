@@ -67,7 +67,7 @@ def entryToFHiCL(entry, params = {}):
   keys = params.get('keys', entry.keys())
   return (
       "{ "
-    + ", ".join(f"{key}: {entry[key]:{paddings.get(key, 0)}d}" for key in keys)
+    + "  ".join(f"{key}: {entry[key]:{paddings.get(key, 0)}d}" for key in keys)
     + " }"
     )
   
@@ -101,7 +101,7 @@ def formatData(settings, args):
     return (
       ((args.varName + " : ") if args.varName else "") + "[\n"
       + ",\n".join(("  " + entryToFHiCL(entry, params)) for entry in settings)
-      + f"] {('# ' + args.varName) if args.varName else ''}\n"
+      + f"\n] {('# ' + args.varName) if args.varName else ''}\n"
       )
   elif args.outputFormat == "Python":
     return (
