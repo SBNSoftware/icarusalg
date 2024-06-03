@@ -250,10 +250,14 @@ namespace fhicl {
     using default_type = T;
     using value_type = T;
 
+    /// Interface extensions: returns a selector associated to `T`.
+    static ::util::StandardSelectorFor<T, Tag> const& selector()
+      { return selector_; }
+    
   private:
     value_type value_{};
 
-    static ::util::StandardSelectorFor<T, Tag> const selector;
+    static ::util::StandardSelectorFor<T, Tag> const selector_;
     
     StandardSelectorAtom(
       Name&& name, Comment&& comment, par_style const vt,
@@ -353,7 +357,7 @@ util::details::decodeEnumClassToFHiCL(std::any const& src, EnumClass& value) {
 // ---  fhicl::StandardSelectorAtom<>
 // -----------------------------------------------------------------------------
 template <typename T, std::size_t Tag>
-util::StandardSelectorFor<T, Tag> const fhicl::StandardSelectorAtom<T, Tag>::selector;
+util::StandardSelectorFor<T, Tag> const fhicl::StandardSelectorAtom<T, Tag>::selector_;
 
 // -----------------------------------------------------------------------------
 template <typename T, std::size_t Tag>
@@ -412,7 +416,7 @@ fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom(Name&& name, T const& 
 template <typename T, std::size_t Tag>
 std::string fhicl::StandardSelectorAtom<T, Tag>::get_stringified_value() const {
   return has_default()
-    ? selector.get(value_).name()
+    ? selector().get(value_).name()
     : detail::no_defaults::expected_types<T>{}.value
     ;
 }
@@ -449,7 +453,7 @@ template <typename T, std::size_t Tag>
 fhicl::Comment fhicl::StandardSelectorAtom<T, Tag>::make_comment
   (Comment const& comment) const
 {
-  std::string const optionList = selector.optionListString();
+  std::string const optionList = selector().optionListString();
   return Comment{ comment.value.empty()
     ? "Choices: " + optionList + "."
     : comment.value + " (choices: " + optionList + ")"
