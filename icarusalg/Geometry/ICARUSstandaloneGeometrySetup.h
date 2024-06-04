@@ -18,7 +18,7 @@
 
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
 
 // LArSoft libraries
 #include "larcorealg/Geometry/StandaloneGeometrySetup.h"
@@ -71,11 +71,11 @@ namespace icarus::geo {
     auto const& config = details::ConfigObjectMaker<ChannelMapClass>::make
       (pset.get<fhicl::ParameterSet>("ChannelMapping"));
     
-    auto channelMap = std::make_unique<ChannelMapClass>
+    auto wireReadout = std::make_unique<ChannelMapClass>
       (config, std::forward<Args>(args)...);
     
     return lar::standalone::SetupGeometryWithChannelMapping
-      (pset, move(channelMap));
+      (pset, move(wireReadout));
     
   } // SetupICARUSGeometry()
   
@@ -114,11 +114,11 @@ namespace lar::standalone {
   
   // ---------------------------------------------------------------------------
   /// Specialization of `lar::standalone::SetupGeometry()`
-  /// for ICARUS channel mapping `icarus::ICARUSChannelMapAlg`.
+  /// for ICARUS channel mapping `icarus::ICARUSWireReadoutGeom`.
   template <>
   inline std::unique_ptr<geo::GeometryCore>
-  SetupGeometry<icarus::ICARUSChannelMapAlg>(fhicl::ParameterSet const& pset)
-    { return icarus::geo::SetupICARUSGeometry<icarus::ICARUSChannelMapAlg>(pset); }
+  SetupGeometry<icarus::ICARUSWireReadoutGeom>(fhicl::ParameterSet const& pset)
+    { return icarus::geo::SetupICARUSGeometry<icarus::ICARUSWireReadoutGeom>(pset); }
   
   
   // ---------------------------------------------------------------------------

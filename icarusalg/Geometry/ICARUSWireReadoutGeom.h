@@ -1,24 +1,21 @@
 /**
- * @file   icarusalg/Geometry/ICARUSChannelMapAlg.h
+ * @file   icarusalg/Geometry/ICARUSWireReadoutGeom.h
  * @brief  Channel mapping algorithms for ICARUS detector.
  * @date   October 19, 2019
  * @author Gianluca Petrillo (petrillo@slac.stanford.edu)
- * @see    `icarusalg/Geometry/ICARUSChannelMapAlg.cxx`
+ * @see    `icarusalg/Geometry/ICARUSWireReadoutGeom.cxx`
  */
 
 #ifndef ICARUSCODE_GEOMETRY_ICARUSCHANNELMAPALG_H
 #define ICARUSCODE_GEOMETRY_ICARUSCHANNELMAPALG_H
 
 // ICARUS libraries
-#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
 #include "icarusalg/Geometry/details/ChannelToWireMap.h"
 #include "icarusalg/Geometry/details/GeometryObjectCollections.h"
 
 // LArSoft libraries
-#include "larcorealg/Geometry/ChannelMapAlg.h"
-// #include "larcorealg/Geometry/GeoObjectSorterStandard.h"
-#include "larcorealg/Geometry/GeometryData.h"
-#include "larcorealg/Geometry/GeometryDataContainers.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
+#include "larcorealg/Geometry/WireReadoutGeomBuilderStandard.h"
 #include "larcorealg/Geometry/ReadoutDataContainers.h"
 #include "larcoreobj/SimpleTypesAndConstants/readout_types.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -26,19 +23,21 @@
 // framework libraries
 #include "fhiclcpp/types/OptionalDelegatedParameter.h"
 #include "fhiclcpp/types/Atom.h"
+#include "fhiclcpp/types/OptionalTable.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/ParameterSet.h"
 
 // C/C++ standard libraries
 #include <vector>
 #include <cassert>
+#include <memory>
 
 
 // -----------------------------------------------------------------------------
 // forward declarations
 namespace icarus {
   
-  class ICARUSChannelMapAlg;
+  class ICARUSWireReadoutGeom;
   
 } // namespace icarus
 
@@ -163,7 +162,7 @@ namespace icarus {
  * 
  * 
  */
-class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
+class icarus::ICARUSWireReadoutGeom: public geo::WireReadoutGeom {
   
   // import definitions
   using TPCColl_t = icarus::details::TPCColl_t;
@@ -251,35 +250,30 @@ class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
     }; // WirelessChannelStruct
     
     
-    fhicl::OptionalDelegatedParameter Sorter {
-      Name("Sorter"),
-      Comment("configuration of the geometry object sorter")
-      };
-    
     fhicl::Table<WirelessChannelStruct> WirelessChannels {
       Name("WirelessChannels"),
       Comment("configuration of channels with no connected wire")
       };
     
+    fhicl::Table<geo::WireReadoutGeomBuilderStandard::Config> builder {
+      Name("Builder")
+    };
+
   }; // struct Config
   
   /// Type of FHiCL configuration table for this object.
   using Parameters = fhicl::Table<Config>;
 
   /// Constructor: taked a configuration object.
-  ICARUSChannelMapAlg(Config const& config);
+  ICARUSWireReadoutGeom(Config const& config,
+                        geo::GeometryCore const* geom,
+                        std::unique_ptr<geo::WireReadoutSorter> sorter);
   
   /// Constructor: takes a FHiCL table object.
-  ICARUSChannelMapAlg(Parameters const& config)
-    : ICARUSChannelMapAlg(config()) {}
-
-  
-  /// Prepares the algorithm extracting information from the geometry.
-  virtual void Initialize(geo::GeometryData_t const& geodata) override;
-  
-  
-  /// Frees the resources of this algorithm.
-  virtual void Uninitialize() override;
+  ICARUSWireReadoutGeom(Parameters const& config,
+                        geo::GeometryCore const* geom,
+                        std::unique_ptr<geo::WireReadoutSorter> sorter)
+    : ICARUSWireReadoutGeom(config(), geom, std::move(sorter)) {}
   
   
   // --- BEGIN -- Channel mapping ----------------------------------------------
@@ -486,10 +480,6 @@ class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
   // --- END -- Readout plane interface ----------------------------------------
 
   
-  /// Return the sorter.
-  virtual geo::GeoObjectSorter const& Sorter() const override
-    { return fSorter; }
-
     private:
   
   /// Type for counts of wireless channels: per TPC set (even/odd), then per
@@ -632,14 +622,6 @@ class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
   
   // --- END -- Configuration parameters ---------------------------------------
 
-  // --- BEGIN -- Sorting ------------------------------------------------------
-  /// Algorithms to sort geometry elements.
-//   geo::GeoObjectSorterStandard fSorter;
-  icarus::GeoObjectSorterPMTasTPC fSorter;
-  
-  // --- END -- Sorting --------------------------------------------------------
-  
-  
   using PlaneType_t = std::size_t; ///< Type for plane type identifier.
   
   /// Identifier for first induction plane type.
@@ -726,7 +708,7 @@ class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
    * 
    */
   void fillChannelToWireMap
-    (geo::GeometryData_t::CryostatList_t const& Cryostats);
+    (std::vector<geo::CryostatGeo> const& Cryostats);
   
   
   /**
@@ -745,7 +727,7 @@ class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
    * and with all their ID's set.
    * 
    */
-  void buildReadoutPlanes(geo::GeometryData_t::CryostatList_t const& Cryostats);
+  void buildReadoutPlanes(std::vector<geo::CryostatGeo> const& Cryostats);
   
   
   /**
@@ -777,7 +759,7 @@ class icarus::ICARUSChannelMapAlg: public geo::ChannelMapAlg {
   
 
   
-}; // class icarus::ICARUSChannelMapAlg
+}; // class icarus::ICARUSWireReadoutGeom
 
 
 #endif // ICARUSCODE_GEOMETRY_ICARUSCHANNELMAPALG_H

@@ -1,32 +1,28 @@
-/**
- * @file   icarusalg/Geometry/details/AuxDetSorting.cxx
- * @brief  Functions for sorting ICARUS CRT modules (auxiliary detectors).
- * @author Chris Hilgenberg, Gianluca Petrillo (refactoring only)
- * @date   August 7, 2018
- * @see    icarusalg/Geometry/details/AuxDetSorting.h
- */
+////////////////////////////////////////////////////////////////////////
+/// \file  GeoObjectSorterICARUS.cxx
+/// \brief Interface to algorithm class for sorting standard geo::XXXGeo objects
+///
+/// \version $Id:  $
+/// \author  brebel@fnal.gov
+////////////////////////////////////////////////////////////////////////
 
-// library header
-#include "icarusalg/Geometry/details/AuxDetSorting.h"
+#include "icarusalg/Geometry/AuxDetGeoObjectSorterICARUS.h"
 
-// LArSoft libraries
 #include "larcorealg/Geometry/AuxDetGeo.h"
 #include "larcorealg/Geometry/AuxDetSensitiveGeo.h"
 
-// C/C++ standard libraries
 #include <string>
-#include <algorithm> // std::sort()
-#include <cstdlib> // std::atoi()
 
+namespace geo{
 
-namespace {
-  
-  //--------------------------------------------------------------------------
-  /// Define sort order for CRT modules in standard configuration.
-  bool AuxDetStandardSortingRule
-    (const geo::AuxDetGeo& ad1, const geo::AuxDetGeo& ad2)
+  //----------------------------------------------------------------------------
+  AuxDetGeoObjectSorterICARUS::AuxDetGeoObjectSorterICARUS(fhicl::ParameterSet const&)
   {
-    
+  }
+
+  //----------------------------------------------------------------------------
+  bool AuxDetGeoObjectSorterICARUS::compareAuxDets(AuxDetGeo const& ad1, AuxDetGeo const& ad2) const
+  {
     std::string type1 = "", type2 = "";
     switch (ad1.NSensitiveVolume()) {
         case 20 : type1 = "MINOS"; break;
@@ -54,14 +50,11 @@ namespace {
     int ad2Num = std::atoi( ad2name.substr( base2.size(), 3).c_str() );
 
     return ad1Num < ad2Num;
+  }
 
-  } // AuxDetStandardSortingRule()
-  
-  
   //----------------------------------------------------------------------------
-  /// Define sort order for CRT submodules in standard configuration.
-  bool AuxDetSensitiveStandardSortingRule
-    (const geo::AuxDetSensitiveGeo& ad1, const geo::AuxDetSensitiveGeo& ad2)
+  bool AuxDetGeoObjectSorterICARUS::compareAuxDetSensitives(AuxDetSensitiveGeo const& ad1,
+                                                            AuxDetSensitiveGeo const& ad2) const
   {
     std::string type1 = "", type2 = "";
 
@@ -96,27 +89,6 @@ namespace {
 
 
     return ad1Num < ad2Num;
+  }
 
-  } // AuxDetSensitiveStandardSortingRule()
-  
-  
-  //----------------------------------------------------------------------------
-  
-} // local namespace
-
-
-//------------------------------------------------------------------------------
-void icarus::SortAuxDetsStandard(std::vector<geo::AuxDetGeo> & adgeo) {
-  std::sort(adgeo.begin(), adgeo.end(), AuxDetStandardSortingRule);
 }
-
-
-//------------------------------------------------------------------------------
-void icarus::SortAuxDetSensitiveStandard
-  (std::vector<geo::AuxDetSensitiveGeo>& adsgeo)
-{
-  std::sort(adsgeo.begin(), adsgeo.end(), AuxDetSensitiveStandardSortingRule);
-}
-
-
-//------------------------------------------------------------------------------

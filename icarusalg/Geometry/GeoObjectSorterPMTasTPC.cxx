@@ -4,31 +4,19 @@
  * @date   April 26, 2020
  * @author Gianluca Petrillo (petrillo@slac.stanford.edu)
  * @see    icarusalg/Geometry/GeoObjectSorterPMTasTPC.h
- * 
- * Nothing, really.
  */
-
 
 // library header
 #include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
 
-// ICARUS libraries
-#include "icarusalg/Geometry/details/AuxDetSorting.h"
+// LArSoft header
+#include "larcorealg/Geometry/OpDetGeo.h"
 
-
-//------------------------------------------------------------------------------
-void icarus::GeoObjectSorterPMTasTPC::SortAuxDets
-  (std::vector<geo::AuxDetGeo>& adgeo) const
+bool icarus::GeoObjectSorterPMTasTPC::compareOpDets(geo::OpDetGeo const& od1,
+                                                    geo::OpDetGeo const& od2) const
 {
-  icarus::SortAuxDetsStandard(adgeo);
+  auto const [c1, c2] = std::pair{od1.GetCenter(), od2.GetCenter()};
+  if (fCmpX(c1, c2)) return c1.X() < c2.X();
+  if (fCmpY(c2, c2)) return c1.Y() < c2.Y();
+  return c1.Z() < c2.Z();
 }
-
-//------------------------------------------------------------------------------
-void icarus::GeoObjectSorterPMTasTPC::SortAuxDetSensitive
-  (std::vector<geo::AuxDetSensitiveGeo>& adsgeo) const
-{
-  icarus::SortAuxDetSensitiveStandard(adsgeo);
-}
-
-
-//------------------------------------------------------------------------------
