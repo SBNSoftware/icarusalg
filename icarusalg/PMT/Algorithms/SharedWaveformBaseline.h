@@ -34,7 +34,7 @@ namespace opdet { class SharedWaveformBaseline; }
  * of the waveforms, as follows:
  * 
  * 1. the RMS of the first portion of each baseline is computed;
- * 2. the median of the samples on the same samples is also computed;
+ * 2. the median of the samples on the same portion of data is also computed;
  * 3. an acceptance range is constructed, using the median of the sample as the
  *    center and `nRMS` times the median of the RMS as maximum distance from
  *    that center in either direction;
@@ -113,6 +113,11 @@ class opdet::SharedWaveformBaseline {
   Params_t fParams; ///< Algorithm parameters.
   
   std::string fLogCategory; ///< Name of stream category for console messages.
+  
+  
+  /// Returns central value and radius for the accepted sample range.
+  std::pair<double, double> acceptanceRange
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
   
 }; // opdet::SharedWaveformBaseline
 
