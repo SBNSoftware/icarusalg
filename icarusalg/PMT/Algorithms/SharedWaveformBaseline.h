@@ -119,6 +119,10 @@ class opdet::SharedWaveformBaseline {
   std::pair<double, double> acceptanceRange
     (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
   
+  /// Returns the median of the maxima of each waveform.
+  raw::ADC_Count_t maximaMedian
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+  
 }; // opdet::SharedWaveformBaseline
 
 

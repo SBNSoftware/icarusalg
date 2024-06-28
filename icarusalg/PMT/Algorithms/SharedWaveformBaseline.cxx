@@ -196,14 +196,28 @@ auto opdet::SharedWaveformBaseline::operator()
     
   } // for
   
-  double const baseline = stats.Average();
   
-  return {
-      baseline                  // baseline
-    , medRMS                    // RMS
-    , nUsedWaveforms            // nWaveforms
-    , (unsigned int) stats.N()  // nSamples
-    };
+  if (stats.N() > 0) {
+    return {
+        stats.Average()           // baseline
+      , medRMS                    // RMS
+      , nUsedWaveforms            // nWaveforms
+      , (unsigned int) stats.N()  // nSamples
+      };
+    
+  }
+  else {
+    // backup: take the median of the maximum sample values on all waveforms
+    mf::LogTrace{ fLogCategory }
+      << "No waveform of channel " << waveforms.front()->ChannelNumber()
+      << " qualified for baseline computation: falling back to use all of them";
+    return {
+        static_cast<double>(maximaMedian(waveforms)) // baseline
+      , medRMS                                       // RMS
+      , static_cast<unsigned int>(waveforms.size())  // nWaveforms
+      , 0                                            // nSamples (special value)
+      };
+  }
   
 } // opdet::SharedWaveformBaseline::operator()
 
@@ -249,6 +263,29 @@ std::pair<double, double> opdet::SharedWaveformBaseline::acceptanceRange
     << medRMS << " ADC";
   
   return { med, medRMS };
+  
+} // opdet::SharedWaveformBaseline::acceptanceRange()
+
+
+//------------------------------------------------------------------------------
+raw::ADC_Count_t opdet::SharedWaveformBaseline::maximaMedian
+  (std::vector<raw::OpDetWaveform const*> const& waveforms) const
+{
+  std::vector<raw::ADC_Count_t> maxima;
+  maxima.reserve(waveforms.size());
+  
+  for (raw::OpDetWaveform const* waveform: waveforms) {
+    
+    mf::LogTrace{ fLogCategory }
+      << "Now processing: " << waveformIntro(waveform);
+    
+    if (waveform->empty()) continue;
+      
+    maxima.push_back(*std::min_element(waveform->cbegin(), waveform->cend()));
+    
+  } // for
+  
+  return median(maxima.cbegin(), maxima.cend());
   
 } // opdet::SharedWaveformBaseline::acceptanceRange()
 
