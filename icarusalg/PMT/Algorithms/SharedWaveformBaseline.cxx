@@ -22,6 +22,7 @@
 #include <iterator> // std::distance(), std::next()
 #include <ostream>
 #include <cmath> // std::round()
+#include <type_traits> // std::enable_if_t
 #include <cassert>
 
 
@@ -31,12 +32,11 @@
 namespace {
   
   /// Extracts the median of the collection between the specified iterators.
-  template <typename BIter, typename EIter>
-  auto median(BIter begin, EIter end) {
+  template <typename Coll>
+  std::enable_if_t
+    <std::is_rvalue_reference_v<Coll&&>, typename Coll::value_type>
+  median(Coll&& data) {
     
-    using value_type = typename BIter::value_type;
-    
-    std::vector<value_type> data{ begin, end };
     assert(!data.empty());
     
     auto const middle = data.begin() + data.size() / 2;
@@ -44,7 +44,18 @@ namespace {
     
     return *middle;
     
-  } // median()
+  } // median(collection rvalue ref)
+  
+  
+  /// Extracts the median of the collection between the specified iterators.
+  template <typename BIter, typename EIter>
+  auto median(BIter begin, EIter end) {
+    
+    using value_type = typename BIter::value_type;
+    
+    return median(std::vector<value_type>{ begin, end });
+    
+  } // median(iterators)
   
   
   /**
@@ -125,48 +136,15 @@ auto opdet::SharedWaveformBaseline::operator()
   //
   // first pass: find statistics
   //
-  std::vector<raw::ADC_Count_t> samples;
-  samples.reserve(fParams.nSample * waveforms.size());
-  std::vector<double> RMSs;
-  RMSs.reserve(waveforms.size());
-  
-  for (raw::OpDetWaveform const* waveform: waveforms) {
-    
-    mf::LogTrace{ fLogCategory } << "Now processing: " << waveformIntro(waveform);
-    
-    if (waveform->size() < fParams.nSample) {
-      mf::LogTrace{ fLogCategory } << waveformIntro(waveform)
-        << ": skipped because shorter than " << fParams.nSample
-        << " samples";
-      continue;
-    }
-    
-    auto const begin = waveform->cbegin();
-    auto const end = std::next(begin, fParams.nSample);
-    
-    lar::util::StatCollector<double> stats;
-    for (auto it = begin; it != end; ++it) stats.add(*it);
-    RMSs.push_back(stats.RMS());
-    
-    std::copy(waveform->begin(), waveform->end(), back_inserter(samples));
-  } // for
-  
-  double const medRMS = median(RMSs.cbegin(), RMSs.cend());
-  raw::ADC_Count_t const med = median(samples.cbegin(), samples.cend());
-  
-  mf::LogTrace{ fLogCategory } << "Stats of channel "
-    << waveforms.front()->ChannelNumber() << " from "
-    << fParams.nSample << " starting samples of " << waveforms.size()
-    << " waveforms: median=" << med << " ADC, median RMS of each waveform="
-    << medRMS << " ADC";
-  
+  auto const [ med, medRMS ] = acceptanceRange(waveforms);
+
   //
   // collect the samples
   //
   raw::ADC_Count_t const aboveThreshold
-    = med + static_cast<raw::ADC_Count_t>(std::round(medRMS * fParams.nRMS));
+    = static_cast<raw::ADC_Count_t>(std::round(med + medRMS * fParams.nRMS));
   raw::ADC_Count_t const belowThreshold
-    = med - static_cast<raw::ADC_Count_t>(std::round(medRMS * fParams.nRMS));
+    = static_cast<raw::ADC_Count_t>(std::round(med - medRMS * fParams.nRMS));
   
   auto const sampleOutOfBoundary
     = [this, aboveThreshold, belowThreshold](auto begin, auto end)
@@ -218,14 +196,98 @@ auto opdet::SharedWaveformBaseline::operator()
     
   } // for
   
-  return {
-      stats.Average()           // baseline
-    , medRMS                    // RMS
-    , nUsedWaveforms            // nWaveforms
-    , (unsigned int) stats.N()  // nSamples
-    };
+  
+  if (stats.N() > 0) {
+    return {
+        stats.Average()           // baseline
+      , medRMS                    // RMS
+      , nUsedWaveforms            // nWaveforms
+      , (unsigned int) stats.N()  // nSamples
+      };
+    
+  }
+  else {
+    // backup: take the median of the maximum sample values on all waveforms
+    mf::LogTrace{ fLogCategory }
+      << "No waveform of channel " << waveforms.front()->ChannelNumber()
+      << " qualified for baseline computation: falling back to use all of them";
+    return {
+        static_cast<double>(maximaMedian(waveforms)) // baseline
+      , medRMS                                       // RMS
+      , static_cast<unsigned int>(waveforms.size())  // nWaveforms
+      , 0                                            // nSamples (special value)
+      };
+  }
   
 } // opdet::SharedWaveformBaseline::operator()
+
+
+//------------------------------------------------------------------------------
+std::pair<double, double> opdet::SharedWaveformBaseline::acceptanceRange
+  (std::vector<raw::OpDetWaveform const*> const& waveforms) const
+{
+  std::vector<raw::ADC_Count_t> samples;
+  samples.reserve(fParams.nSample * waveforms.size());
+  std::vector<double> RMSs;
+  RMSs.reserve(waveforms.size());
+  
+  for (raw::OpDetWaveform const* waveform: waveforms) {
+    
+    mf::LogTrace{ fLogCategory }
+      << "Now processing: " << waveformIntro(waveform);
+    
+    if (waveform->size() < fParams.nSample) {
+      mf::LogTrace{ fLogCategory } << waveformIntro(waveform)
+        << ": skipped because shorter than " << fParams.nSample
+        << " samples";
+      continue;
+    }
+    
+    auto const begin = waveform->cbegin();
+    auto const end = std::next(begin, fParams.nSample);
+    
+    lar::util::StatCollector<double> stats;
+    for (auto it = begin; it != end; ++it) stats.add(*it);
+    RMSs.push_back(stats.RMS());
+    
+    std::copy(waveform->begin(), waveform->end(), back_inserter(samples));
+  } // for
+  
+  raw::ADC_Count_t const med = median(samples.cbegin(), samples.cend());
+  double const medRMS = median(RMSs.cbegin(), RMSs.cend());
+  
+  mf::LogTrace{ fLogCategory } << "Stats of channel "
+    << waveforms.front()->ChannelNumber() << " from "
+    << fParams.nSample << " starting samples of " << waveforms.size()
+    << " waveforms: median=" << med << " ADC, median RMS of each waveform="
+    << medRMS << " ADC";
+  
+  return { med, medRMS };
+  
+} // opdet::SharedWaveformBaseline::acceptanceRange()
+
+
+//------------------------------------------------------------------------------
+raw::ADC_Count_t opdet::SharedWaveformBaseline::maximaMedian
+  (std::vector<raw::OpDetWaveform const*> const& waveforms) const
+{
+  std::vector<raw::ADC_Count_t> maxima;
+  maxima.reserve(waveforms.size());
+  
+  for (raw::OpDetWaveform const* waveform: waveforms) {
+    
+    mf::LogTrace{ fLogCategory }
+      << "Now processing: " << waveformIntro(waveform);
+    
+    if (waveform->empty()) continue;
+      
+    maxima.push_back(*std::min_element(waveform->cbegin(), waveform->cend()));
+    
+  } // for
+  
+  return median(maxima.cbegin(), maxima.cend());
+  
+} // opdet::SharedWaveformBaseline::acceptanceRange()
 
 
 //------------------------------------------------------------------------------
