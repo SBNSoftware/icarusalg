@@ -31,6 +31,16 @@
 //------------------------------------------------------------------------------
 namespace {
   
+  /// Returns the maximum of the specified collection (C++20: remove and use ranges).
+  /// Requires non-empty `data` collection.
+  template <typename Coll>
+  auto collectionMaximum(Coll const& data) {
+    using std::empty, std::cbegin, std::cend;
+    assert(!empty(data));
+    return *std::max_element(cbegin(data), cend(data));
+  } // collectionMaximum()
+  
+
   /// Extracts the median of the collection between the specified iterators.
   template <typename Coll>
   std::enable_if_t
@@ -212,7 +222,7 @@ auto opdet::SharedWaveformBaseline::operator()
       << "No waveform of channel " << waveforms.front()->ChannelNumber()
       << " qualified for baseline computation: falling back to use all of them";
     return {
-        static_cast<double>(maximaMedian(waveforms)) // baseline
+        static_cast<double>(medianOfMedians(waveforms)) // baseline
       , medRMS                                       // RMS
       , static_cast<unsigned int>(waveforms.size())  // nWaveforms
       , 0                                            // nSamples (special value)
@@ -253,8 +263,8 @@ std::pair<double, double> opdet::SharedWaveformBaseline::acceptanceRange
     std::copy(waveform->begin(), waveform->end(), back_inserter(samples));
   } // for
   
-  raw::ADC_Count_t const med = median(samples.cbegin(), samples.cend());
-  double const medRMS = median(RMSs.cbegin(), RMSs.cend());
+  raw::ADC_Count_t const med = median(std::move(samples));
+  double const medRMS = median(std::move(RMSs));
   
   mf::LogTrace{ fLogCategory } << "Stats of channel "
     << waveforms.front()->ChannelNumber() << " from "
@@ -265,6 +275,49 @@ std::pair<double, double> opdet::SharedWaveformBaseline::acceptanceRange
   return { med, medRMS };
   
 } // opdet::SharedWaveformBaseline::acceptanceRange()
+
+
+//------------------------------------------------------------------------------
+std::vector<raw::ADC_Count_t> opdet::SharedWaveformBaseline::waveformMedians
+  (std::vector<raw::OpDetWaveform const*> const& waveforms) const
+{
+  std::vector<raw::ADC_Count_t> medians;
+  medians.reserve(waveforms.size());
+  
+  for (raw::OpDetWaveform const* waveform: waveforms) {
+    
+    if (waveform->empty()) continue;
+      
+    medians.push_back(median(waveform->begin(), waveform->end()));
+    
+    mf::LogTrace{ fLogCategory } << "Median of " << waveformIntro(waveform)
+      << ": " << medians.back() << " ADC#";
+    
+  } // for
+  
+  return medians;
+  
+} // opdet::SharedWaveformBaseline::waveformMedians()
+
+
+//------------------------------------------------------------------------------
+raw::ADC_Count_t opdet::SharedWaveformBaseline::medianOfMedians
+  (std::vector<raw::OpDetWaveform const*> const& waveforms) const
+{
+  
+  return median(waveformMedians(waveforms));
+  
+} // opdet::SharedWaveformBaseline::medianOfMedians()
+
+
+//------------------------------------------------------------------------------
+raw::ADC_Count_t opdet::SharedWaveformBaseline::maximumOfMedians
+  (std::vector<raw::OpDetWaveform const*> const& waveforms) const
+{
+  assert(!waveforms.empty());
+  return collectionMaximum(waveformMedians(waveforms));
+  
+} // opdet::SharedWaveformBaseline::maximumOfMedians()
 
 
 //------------------------------------------------------------------------------
@@ -281,11 +334,11 @@ raw::ADC_Count_t opdet::SharedWaveformBaseline::maximaMedian
     
     if (waveform->empty()) continue;
       
-    maxima.push_back(*std::min_element(waveform->cbegin(), waveform->cend()));
+    maxima.push_back(collectionMaximum(*waveform));
     
   } // for
   
-  return median(maxima.cbegin(), maxima.cend());
+  return median(std::move(maxima));
   
 } // opdet::SharedWaveformBaseline::acceptanceRange()
 

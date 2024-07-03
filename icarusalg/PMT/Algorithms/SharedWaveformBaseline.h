@@ -44,7 +44,11 @@ namespace opdet { class SharedWaveformBaseline; }
  * 5. all the samples in the first portion of the remaining waveforms are
  *    averaged to obtain the final estimation of the baseline; this last step
  *    should increase the resolution of the baseline beyond the median that was
- *    obtained at step 2.
+ *    obtained at step 2;
+ * 6. if no waveform passed the check on step 4, then the baseline is defined as
+ *    the median of the set of medians from each waveform, in an attempt to
+ *    suppress the contribution of outliers. In this case, the number of used
+ *    samples is conventionally returned to be `0`.
  * 
  * The parameters are specified at algorithm construction time and are contained
  * in the `Params_t` object.
@@ -119,8 +123,20 @@ class opdet::SharedWaveformBaseline {
   std::pair<double, double> acceptanceRange
     (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
   
+  /// Returns the list of medians of all the specified `waveforms`.
+  std::vector<raw::ADC_Count_t> waveformMedians
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+    
   /// Returns the median of the maxima of each waveform.
   raw::ADC_Count_t maximaMedian
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+  
+  /// Returns the median of the medians of the specified `waveforms`.
+  raw::ADC_Count_t medianOfMedians
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+  
+  /// Returns the maximum among the medians of the specified `waveforms`.
+  raw::ADC_Count_t maximumOfMedians
     (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
   
 }; // opdet::SharedWaveformBaseline
