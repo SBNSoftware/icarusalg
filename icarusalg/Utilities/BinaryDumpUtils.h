@@ -516,7 +516,7 @@ constexpr auto icarus::ns::util::bin(T value)
 template
   <unsigned int const Bits, const char* Digits /* = DIGITS */, typename T>
 constexpr auto icarus::ns::util::bin(T value)
-  -> details::BinObj<T, sizeof(T)*8, Digits>
+  -> details::BinObj<T, Bits, Digits>
   { return details::BinObj<T, Bits, Digits>{ std::move(value) }; }
 
 

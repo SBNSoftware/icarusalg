@@ -13,6 +13,9 @@
 // ICARUS libraries
 #include "icarusalg/Utilities/NonRandomCounter.h"
 
+// C++ standard libraries
+#include <array>
+
 
 //------------------------------------------------------------------------------
 void Test() {
