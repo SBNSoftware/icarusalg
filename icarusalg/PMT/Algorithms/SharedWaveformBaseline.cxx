@@ -217,7 +217,7 @@ auto opdet::SharedWaveformBaseline::operator()
     
   }
   else {
-    // backup: take the median of the maximum sample values on all waveforms
+    // backup: take the median of the medians of all waveforms
     mf::LogTrace{ fLogCategory }
       << "No waveform of channel " << waveforms.front()->ChannelNumber()
       << " qualified for baseline computation: falling back to use all of them";
