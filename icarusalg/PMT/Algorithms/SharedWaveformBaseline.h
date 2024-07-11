@@ -34,7 +34,7 @@ namespace opdet { class SharedWaveformBaseline; }
  * of the waveforms, as follows:
  * 
  * 1. the RMS of the first portion of each baseline is computed;
- * 2. the median of the samples on the same samples is also computed;
+ * 2. the median of the samples on the same portion of data is also computed;
  * 3. an acceptance range is constructed, using the median of the sample as the
  *    center and `nRMS` times the median of the RMS as maximum distance from
  *    that center in either direction;
@@ -44,7 +44,11 @@ namespace opdet { class SharedWaveformBaseline; }
  * 5. all the samples in the first portion of the remaining waveforms are
  *    averaged to obtain the final estimation of the baseline; this last step
  *    should increase the resolution of the baseline beyond the median that was
- *    obtained at step 2.
+ *    obtained at step 2;
+ * 6. if no waveform passed the check on step 4, then the baseline is defined as
+ *    the median of the set of medians from each waveform, in an attempt to
+ *    suppress the contribution of outliers. In this case, the number of used
+ *    samples is conventionally returned to be `0`.
  * 
  * The parameters are specified at algorithm construction time and are contained
  * in the `Params_t` object.
@@ -113,6 +117,27 @@ class opdet::SharedWaveformBaseline {
   Params_t fParams; ///< Algorithm parameters.
   
   std::string fLogCategory; ///< Name of stream category for console messages.
+  
+  
+  /// Returns central value and radius for the accepted sample range.
+  std::pair<double, double> acceptanceRange
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+  
+  /// Returns the list of medians of all the specified `waveforms`.
+  std::vector<raw::ADC_Count_t> waveformMedians
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+    
+  /// Returns the median of the maxima of each waveform.
+  raw::ADC_Count_t maximaMedian
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+  
+  /// Returns the median of the medians of the specified `waveforms`.
+  raw::ADC_Count_t medianOfMedians
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
+  
+  /// Returns the maximum among the medians of the specified `waveforms`.
+  raw::ADC_Count_t maximumOfMedians
+    (std::vector<raw::OpDetWaveform const*> const& waveforms) const;
   
 }; // opdet::SharedWaveformBaseline
 
