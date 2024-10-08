@@ -1,22 +1,25 @@
 /**
- * @file   icarusalg/Geometry/ICARUSChannelMapAlg.cxx
+ * @file   icarusalg/Geometry/ICARUSWireReadoutGeom.cxx
  * @brief  Channel mapping algorithms for ICARUS detector: implementation file.
  * @date   October 19, 2019
  * @author Gianluca Petrillo (petrillo@slac.stanford.edu)
- * @see    icarusalg/Geometry/ICARUSChannelMapAlg.h
+ * @see    icarusalg/Geometry/ICARUSWireReadoutGeom.h
  */
 
 // library header
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
 
 // ICARUS libraries
 #include "icarusalg/Geometry/details/ROPandTPCsetBuildingAlg.h"
 
 // LArSoft libraries
 #include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/ReadoutDataContainers.h"
+#include "larcorealg/Geometry/WireReadoutGeomBuilderStandard.h"
+#include "larcorealg/Geometry/WireReadoutSorter.h"
 #include "larcorealg/Geometry/details/extractMaxGeometryElements.h"
 #include "larcorealg/CoreUtils/enumerate.h"
 #include "larcorealg/CoreUtils/counter.h"
@@ -30,6 +33,7 @@
 #include "cetlib_except/exception.h" // cet::exception
 
 // C/C++ libraries
+#include <memory>
 #include <vector>
 #include <array>
 #include <set>
@@ -41,16 +45,6 @@
 
 
 namespace {
-  
-  // ---------------------------------------------------------------------------
-  fhicl::ParameterSet getOptionalParameterSet
-    (fhicl::OptionalDelegatedParameter const& param)
-  {
-    fhicl::ParameterSet pset; // empty by default
-    param.get_if_present(pset);
-    return pset;
-  } // fhicl::ParameterSet getOptionalParameterSet()
-  
   
   // ---------------------------------------------------------------------------
   
@@ -75,46 +69,32 @@ namespace {
 
 
 // -----------------------------------------------------------------------------
-icarus::ICARUSChannelMapAlg::ICARUSChannelMapAlg(Config const& config)
-  : fWirelessChannelCounts
+icarus::ICARUSWireReadoutGeom::ICARUSWireReadoutGeom(Config const& config,
+                                                     geo::GeometryCore const* geom,
+                                                     std::unique_ptr<geo::WireReadoutSorter> sorter)
+  : WireReadoutGeom{geom,
+                    std::make_unique<geo::WireReadoutGeomBuilderStandard>(config.builder),
+                    std::move(sorter)}
+  , fWirelessChannelCounts
     (extractWirelessChannelParams(config.WirelessChannels()))
-  , fSorter(getOptionalParameterSet(config.Sorter))
-  {}
-
-
-// -----------------------------------------------------------------------------
-void icarus::ICARUSChannelMapAlg::Initialize(geo::GeometryData_t const& geodata)
 {
   // This is the only INFO level message we want this object to produce;
   // given the dynamic nature of the channel mapping choice,
   // it's better for the log to have some indication of chosen channel mapping.
-  mf::LogInfo("ICARUSChannelMapAlg")
-    << "Initializing ICARUSChannelMapAlg channel mapping algorithm.";
+  mf::LogInfo("ICARUSWireReadoutGeom")
+    << "Initializing ICARUSWireReadoutGeom channel mapping algorithm.";
   
-  buildReadoutPlanes(geodata.cryostats);
+  buildReadoutPlanes(geom->Cryostats());
   
-  fillChannelToWireMap(geodata.cryostats);
+  fillChannelToWireMap(geom->Cryostats());
   
-  MF_LOG_TRACE("ICARUSChannelMapAlg")
-    << "ICARUSChannelMapAlg::Initialize() completed.";
-  
-} // icarus::ICARUSChannelMapAlg::Initialize()
-
-
-// -----------------------------------------------------------------------------
-void icarus::ICARUSChannelMapAlg::Uninitialize() {
-  
-  fReadoutMapInfo.clear();
-  
-  fChannelToWireMap.clear();
-  
-  fPlaneInfo.clear();
-  
-} // icarus::ICARUSChannelMapAlg::Uninitialize()
+  MF_LOG_TRACE("ICARUSWireReadoutGeom")
+    << "ICARUSWireReadoutGeom::Initialize() completed.";
+  }
 
 
 //------------------------------------------------------------------------------
-std::vector<geo::WireID> icarus::ICARUSChannelMapAlg::ChannelToWire
+std::vector<geo::WireID> icarus::ICARUSWireReadoutGeom::ChannelToWire
   (raw::ChannelID_t channel) const
 {
   //
@@ -134,7 +114,7 @@ std::vector<geo::WireID> icarus::ICARUSChannelMapAlg::ChannelToWire
     = fChannelToWireMap.find(channel);
   if (!channelInfo) {
     throw cet::exception("Geometry")
-      << "icarus::ICARUSChannelMapAlg::ChannelToWire(" << channel
+      << "icarus::ICARUSWireReadoutGeom::ChannelToWire(" << channel
       << "): invalid channel requested (must be lower than "
       << Nchannels() << ")\n";
   }
@@ -161,82 +141,82 @@ std::vector<geo::WireID> icarus::ICARUSChannelMapAlg::ChannelToWire
   
   return AllSegments;
   
-} // icarus::ICARUSChannelMapAlg::ChannelToWire()
+} // icarus::ICARUSWireReadoutGeom::ChannelToWire()
 
 
 //------------------------------------------------------------------------------
-unsigned int icarus::ICARUSChannelMapAlg::Nchannels() const {
+unsigned int icarus::ICARUSWireReadoutGeom::Nchannels() const {
   
   return fChannelToWireMap.nChannels();
   
-} // icarus::ICARUSChannelMapAlg::Nchannels()
+} // icarus::ICARUSWireReadoutGeom::Nchannels()
 
 
 //------------------------------------------------------------------------------
-unsigned int icarus::ICARUSChannelMapAlg::Nchannels
+unsigned int icarus::ICARUSWireReadoutGeom::Nchannels
   (readout::ROPID const& ropid) const 
 {
   icarus::details::ChannelToWireMap::ChannelsInROPStruct const* ROPinfo
     = fChannelToWireMap.find(ropid);
   return ROPinfo? ROPinfo->nChannels: 0U;
-} // icarus::ICARUSChannelMapAlg::Nchannels(ROPID)
+} // icarus::ICARUSWireReadoutGeom::Nchannels(ROPID)
 
 
 //------------------------------------------------------------------------------
-double icarus::ICARUSChannelMapAlg::WireCoordinate
+double icarus::ICARUSWireReadoutGeom::WireCoordinate
   (double YPos, double ZPos, geo::PlaneID const& planeID) const
 {
   /*
    * this should NOT be called... it shouldn't be here at all!
    */
   
-  cet::exception e("ICARUSChannelMapAlg");
-  e << "ICARUSChannelMapAlg does not support `WireCoordinate()` call."
+  cet::exception e("ICARUSWireReadoutGeom");
+  e << "ICARUSWireReadoutGeom does not support `WireCoordinate()` call."
     "\nPlease update calling software to use geo::PlaneGeo::WireCoordinate()`:"
     "\n";
   
   lar::debug::printBacktrace(e, 4U);
   
   throw e;
-} // icarus::ICARUSChannelMapAlg::WireCoordinate()
+} // icarus::ICARUSWireReadoutGeom::WireCoordinate()
 
 
 //------------------------------------------------------------------------------
-geo::WireID icarus::ICARUSChannelMapAlg::NearestWireID
+geo::WireID icarus::ICARUSWireReadoutGeom::NearestWireID
   (const geo::Point_t& worldPos, geo::PlaneID const& planeID) const
 {
   /*
    * this should NOT be called... it shouldn't be here at all!
    */
   
-  cet::exception e("ICARUSChannelMapAlg");
-  e << "ICARUSChannelMapAlg does not support `NearestWireID()` call."
+  cet::exception e("ICARUSWireReadoutGeom");
+  e << "ICARUSWireReadoutGeom does not support `NearestWireID()` call."
     "\nPlease update calling software to use geo::PlaneGeo::NearestWireID()`:"
     "\n";
   
   lar::debug::printBacktrace(e, 3U);
   
   throw e;
-} // icarus::ICARUSChannelMapAlg::NearestWireID()
+} // icarus::ICARUSWireReadoutGeom::NearestWireID()
 
 
 //------------------------------------------------------------------------------
-raw::ChannelID_t icarus::ICARUSChannelMapAlg::PlaneWireToChannel
+raw::ChannelID_t icarus::ICARUSWireReadoutGeom::PlaneWireToChannel
   (geo::WireID const& wireID) const
 {
   return fPlaneInfo[wireID].firstChannel() + wireID.Wire;
-} // icarus::ICARUSChannelMapAlg::PlaneWireToChannel()
+} // icarus::ICARUSWireReadoutGeom::PlaneWireToChannel()
 
 
 //------------------------------------------------------------------------------
-std::set<geo::PlaneID> const& icarus::ICARUSChannelMapAlg::PlaneIDs() const {
+std::set<geo::PlaneID> const& icarus::ICARUSWireReadoutGeom::PlaneIDs() const {
   
   /*
    * this should NOT be called... it shouldn't be here at all!
    */
   
-  cet::exception e("ICARUSChannelMapAlg");
-  e << "ICARUSChannelMapAlg does not support `PlaneIDs()` call."
+  cet::exception e("ICARUSWireReadoutGeom");
+  e << "ICARUSWireReadoutGeom does not support `PlaneIDs()` call."
     "\nPlease update calling software to use geo::GeometryCore::IteratePlanes()`"
     "\n";
   
@@ -244,46 +224,46 @@ std::set<geo::PlaneID> const& icarus::ICARUSChannelMapAlg::PlaneIDs() const {
   
   throw e;
   
-} // icarus::ICARUSChannelMapAlg::PlaneIDs()
+} // icarus::ICARUSWireReadoutGeom::PlaneIDs()
 
 
 //------------------------------------------------------------------------------
-unsigned int icarus::ICARUSChannelMapAlg::NTPCsets
+unsigned int icarus::ICARUSWireReadoutGeom::NTPCsets
   (readout::CryostatID const& cryoid) const
 {
   return HasCryostat(cryoid)? TPCsetCount(cryoid): 0U;
-} // icarus::ICARUSChannelMapAlg::NTPCsets()
+} // icarus::ICARUSWireReadoutGeom::NTPCsets()
 
 
 //------------------------------------------------------------------------------
 /// Returns the largest number of TPC sets any cryostat in the detector has
-unsigned int icarus::ICARUSChannelMapAlg::MaxTPCsets() const {
+unsigned int icarus::ICARUSWireReadoutGeom::MaxTPCsets() const {
   assert(fReadoutMapInfo);
   return fReadoutMapInfo.MaxTPCsets();
-} // icarus::ICARUSChannelMapAlg::MaxTPCsets()
+} // icarus::ICARUSWireReadoutGeom::MaxTPCsets()
 
 
 //------------------------------------------------------------------------------
 /// Returns whether we have the specified TPC set
 /// @return whether the TPC set is valid and exists
-bool icarus::ICARUSChannelMapAlg::HasTPCset
+bool icarus::ICARUSWireReadoutGeom::HasTPCset
   (readout::TPCsetID const& tpcsetid) const
 {
   return
     HasCryostat(tpcsetid)? (tpcsetid.TPCset < TPCsetCount(tpcsetid)): false;
-} // icarus::ICARUSChannelMapAlg::HasTPCset()
+} // icarus::ICARUSWireReadoutGeom::HasTPCset()
 
 
 //------------------------------------------------------------------------------
-readout::TPCsetID icarus::ICARUSChannelMapAlg::TPCtoTPCset
+readout::TPCsetID icarus::ICARUSWireReadoutGeom::TPCtoTPCset
   (geo::TPCID const& tpcid) const
 {
   return tpcid? TPCtoTPCset()[tpcid]: readout::TPCsetID{};
-} // icarus::ICARUSChannelMapAlg::TPCtoTPCset()
+} // icarus::ICARUSWireReadoutGeom::TPCtoTPCset()
 
 
 //------------------------------------------------------------------------------
-std::vector<geo::TPCID> icarus::ICARUSChannelMapAlg::TPCsetToTPCs
+std::vector<geo::TPCID> icarus::ICARUSWireReadoutGeom::TPCsetToTPCs
   (readout::TPCsetID const& tpcsetid) const
 {
   std::vector<geo::TPCID> TPCs;
@@ -295,11 +275,11 @@ std::vector<geo::TPCID> icarus::ICARUSChannelMapAlg::TPCsetToTPCs
     std::mem_fn(&geo::TPCGeo::ID)
     );
   return TPCs;
-} // icarus::ICARUSChannelMapAlg::TPCsetToTPCs()
+} // icarus::ICARUSWireReadoutGeom::TPCsetToTPCs()
 
 
 //------------------------------------------------------------------------------
-geo::TPCID icarus::ICARUSChannelMapAlg::FirstTPCinTPCset
+geo::TPCID icarus::ICARUSWireReadoutGeom::FirstTPCinTPCset
   (readout::TPCsetID const& tpcsetid) const
 {
   if (!tpcsetid) return {};
@@ -307,27 +287,27 @@ geo::TPCID icarus::ICARUSChannelMapAlg::FirstTPCinTPCset
   auto const& TPClist = TPCsetTPCs(tpcsetid);
   return TPClist.empty()? geo::TPCID{}: TPClist.front()->ID();
   
-} // icarus::ICARUSChannelMapAlg::FirstTPCinTPCset()
+} // icarus::ICARUSWireReadoutGeom::FirstTPCinTPCset()
 
 
 //------------------------------------------------------------------------------
-unsigned int icarus::ICARUSChannelMapAlg::NROPs
+unsigned int icarus::ICARUSWireReadoutGeom::NROPs
   (readout::TPCsetID const& tpcsetid) const
 {
   return HasTPCset(tpcsetid)? ROPcount(tpcsetid): 0U;
-} // icarus::ICARUSChannelMapAlg::NROPs()
+} // icarus::ICARUSWireReadoutGeom::NROPs()
 
 
 //------------------------------------------------------------------------------
-unsigned int icarus::ICARUSChannelMapAlg::MaxROPs() const {
+unsigned int icarus::ICARUSWireReadoutGeom::MaxROPs() const {
   assert(fReadoutMapInfo);
   return fReadoutMapInfo.MaxROPs();
-} // icarus::ICARUSChannelMapAlg::MaxROPs()
+} // icarus::ICARUSWireReadoutGeom::MaxROPs()
 
 //------------------------------------------------------------------------------
-bool icarus::ICARUSChannelMapAlg::HasROP(readout::ROPID const& ropid) const {
+bool icarus::ICARUSWireReadoutGeom::HasROP(readout::ROPID const& ropid) const {
   return HasTPCset(ropid)? (ropid.ROP < ROPcount(ropid)): false;
-} // icarus::ICARUSChannelMapAlg::HasROP()
+} // icarus::ICARUSWireReadoutGeom::HasROP()
 
 
 //------------------------------------------------------------------------------
@@ -343,15 +323,15 @@ bool icarus::ICARUSChannelMapAlg::HasROP(readout::ROPID const& ropid) const {
    * does not necessarily imply that the plane specified by the ID actually
    * exists.
    */
-readout::ROPID icarus::ICARUSChannelMapAlg::WirePlaneToROP
+readout::ROPID icarus::ICARUSWireReadoutGeom::WirePlaneToROP
   (geo::PlaneID const& planeid) const
 {
   return planeid? PlaneToROP(planeid): readout::ROPID{};
-} // icarus::ICARUSChannelMapAlg::WirePlaneToROP()
+} // icarus::ICARUSWireReadoutGeom::WirePlaneToROP()
 
 
 //------------------------------------------------------------------------------
-std::vector<geo::PlaneID> icarus::ICARUSChannelMapAlg::ROPtoWirePlanes
+std::vector<geo::PlaneID> icarus::ICARUSWireReadoutGeom::ROPtoWirePlanes
   (readout::ROPID const& ropid) const
 {
   std::vector<geo::PlaneID> Planes;
@@ -363,11 +343,11 @@ std::vector<geo::PlaneID> icarus::ICARUSChannelMapAlg::ROPtoWirePlanes
     std::mem_fn(&geo::PlaneGeo::ID)
     );
   return Planes;
-} // icarus::ICARUSChannelMapAlg::ROPtoWirePlanes()
+} // icarus::ICARUSWireReadoutGeom::ROPtoWirePlanes()
 
 
 //------------------------------------------------------------------------------
-std::vector<geo::TPCID> icarus::ICARUSChannelMapAlg::ROPtoTPCs
+std::vector<geo::TPCID> icarus::ICARUSWireReadoutGeom::ROPtoTPCs
   (readout::ROPID const& ropid) const
 {
   std::vector<geo::TPCID> TPCs;
@@ -390,53 +370,53 @@ std::vector<geo::TPCID> icarus::ICARUSChannelMapAlg::ROPtoTPCs
     std::mem_fn(&geo::PlaneGeo::ID)
     );
   return TPCs;
-} // icarus::ICARUSChannelMapAlg::ROPtoTPCs()
+} // icarus::ICARUSWireReadoutGeom::ROPtoTPCs()
 
 
 //------------------------------------------------------------------------------
-readout::ROPID icarus::ICARUSChannelMapAlg::ChannelToROP
+readout::ROPID icarus::ICARUSWireReadoutGeom::ChannelToROP
   (raw::ChannelID_t channel) const
 {
   if (!raw::isValidChannelID(channel)) return {};
   icarus::details::ChannelToWireMap::ChannelsInROPStruct const* info
     = fChannelToWireMap.find(channel);
   return info? info->ropid: readout::ROPID{};
-} // icarus::ICARUSChannelMapAlg::ChannelToROP()
+} // icarus::ICARUSWireReadoutGeom::ChannelToROP()
 
 
 //------------------------------------------------------------------------------
-raw::ChannelID_t icarus::ICARUSChannelMapAlg::FirstChannelInROP
+raw::ChannelID_t icarus::ICARUSWireReadoutGeom::FirstChannelInROP
   (readout::ROPID const& ropid) const
 {
   if (!ropid) return raw::InvalidChannelID;
   icarus::details::ChannelToWireMap::ChannelsInROPStruct const* info
     = fChannelToWireMap.find(ropid);
   return info? info->firstChannel: raw::InvalidChannelID;
-} // icarus::ICARUSChannelMapAlg::FirstChannelInROP()
+} // icarus::ICARUSWireReadoutGeom::FirstChannelInROP()
 
 
 //------------------------------------------------------------------------------
-geo::PlaneID icarus::ICARUSChannelMapAlg::FirstWirePlaneInROP
+geo::PlaneID icarus::ICARUSWireReadoutGeom::FirstWirePlaneInROP
   (readout::ROPID const& ropid) const
 {
   if (!ropid) return {};
   PlaneColl_t const& planes = ROPplanes(ropid);
   return planes.empty()? geo::PlaneID{}: planes.front()->ID();
-} // icarus::ICARUSChannelMapAlg::FirstWirePlaneInROP()
+} // icarus::ICARUSWireReadoutGeom::FirstWirePlaneInROP()
 
 
 //------------------------------------------------------------------------------
-bool icarus::ICARUSChannelMapAlg::HasCryostat
+bool icarus::ICARUSWireReadoutGeom::HasCryostat
   (readout::CryostatID const& cryoid) const
 {
   assert(fReadoutMapInfo);
   return cryoid.Cryostat < fReadoutMapInfo.NCryostats();
-} // icarus::ICARUSChannelMapAlg::HasCryostat()
+} // icarus::ICARUSWireReadoutGeom::HasCryostat()
 
 
 //------------------------------------------------------------------------------
-void icarus::ICARUSChannelMapAlg::fillChannelToWireMap
-  (geo::GeometryData_t::CryostatList_t const& Cryostats)
+void icarus::ICARUSWireReadoutGeom::fillChannelToWireMap
+  (std::vector<geo::CryostatGeo> const& Cryostats)
 {
   
   //
@@ -450,7 +430,7 @@ void icarus::ICARUSChannelMapAlg::fillChannelToWireMap
   //
   assert(fPlaneInfo.empty());
   std::array<unsigned int, 3U> maxSizes
-    = geo::details::extractMaxGeometryElements<3U>(Cryostats);
+    = geo::details::extractMaxGeometryElements<3U>(Cryostats, *this);
 
   fPlaneInfo.resize(maxSizes[0U], maxSizes[1U], maxSizes[2U]);
   
@@ -480,7 +460,7 @@ void icarus::ICARUSChannelMapAlg::fillChannelToWireMap
       
       for (readout::ROPID::ROPID_t r: util::counter(nROPs)) {
         
-        mf::LogTrace log("ICARUSChannelMapAlg");
+        mf::LogTrace log("ICARUSWireReadoutGeom");
         
         readout::ROPID const rid { sid, r };
         auto const planeType = findPlaneType(rid);
@@ -523,7 +503,7 @@ void icarus::ICARUSChannelMapAlg::fillChannelToWireMap
             = plane.NearestWireID(lastWirePos);
           
           /*
-          mf::LogTrace("ICARUSChannelMapAlg")
+          mf::LogTrace("ICARUSWireReadoutGeom")
             << (*std::prev(iPlane))->ID() << " W:" << ((*std::prev(iPlane))->Nwires() - 1)
             << " ending at " << (*std::prev(iPlane))->LastWire().GetEnd()
             << " matched " << lastMatchedWireID
@@ -566,20 +546,20 @@ void icarus::ICARUSChannelMapAlg::fillChannelToWireMap
   } // for cryostat
   
   fChannelToWireMap.setEndChannel(nextChannel);
-  mf::LogTrace("ICARUSChannelMapAlg")
+  mf::LogTrace("ICARUSWireReadoutGeom")
     << "Counted " << fChannelToWireMap.nChannels() << " channels.";
   
-} // icarus::ICARUSChannelMapAlg::fillChannelToWireMap()
+} // icarus::ICARUSWireReadoutGeom::fillChannelToWireMap()
 
 
 // -----------------------------------------------------------------------------
-void icarus::ICARUSChannelMapAlg::buildReadoutPlanes
-  (geo::GeometryData_t::CryostatList_t const& Cryostats)
+void icarus::ICARUSWireReadoutGeom::buildReadoutPlanes
+  (std::vector<geo::CryostatGeo> const& Cryostats)
 {
   // the algorithm is delegated:
-  icarus::details::ROPandTPCsetBuildingAlg builder("ICARUSChannelMapAlg");
+  icarus::details::ROPandTPCsetBuildingAlg builder("ICARUSWireReadoutGeom");
   
-  auto results = builder.run(Cryostats);
+  auto results = builder.run(*this, Cryostats);
   
   fReadoutMapInfo.set(
     std::move(results).TPCsetCount(), std::move(results).TPCsetTPCs(),
@@ -587,11 +567,11 @@ void icarus::ICARUSChannelMapAlg::buildReadoutPlanes
     std::move(results).TPCtoTPCset(), std::move(results).PlaneToROP()
     );
   
-} // icarus::ICARUSChannelMapAlg::buildReadoutPlanes()
+} // icarus::ICARUSWireReadoutGeom::buildReadoutPlanes()
 
 
 // -----------------------------------------------------------------------------
-auto icarus::ICARUSChannelMapAlg::findPlaneType(readout::ROPID const& rid) const
+auto icarus::ICARUSWireReadoutGeom::findPlaneType(readout::ROPID const& rid) const
   -> PlaneType_t
 {
   /*
@@ -613,11 +593,11 @@ auto icarus::ICARUSChannelMapAlg::findPlaneType(readout::ROPID const& rid) const
     return PlaneTypes[planeNo];
   else return kUnknownType;
   
-} // icarus::ICARUSChannelMapAlg::findPlaneType()
+} // icarus::ICARUSWireReadoutGeom::findPlaneType()
 
 
 // ----------------------------------------------------------------------------
-geo::SigType_t icarus::ICARUSChannelMapAlg::SignalTypeForChannelImpl
+geo::SigType_t icarus::ICARUSWireReadoutGeom::SignalTypeForChannelImpl
   (raw::ChannelID_t const channel) const
 {
   /*
@@ -639,11 +619,11 @@ geo::SigType_t icarus::ICARUSChannelMapAlg::SignalTypeForChannelImpl
       return geo::kMysteryType;
   } // switch
   
-} // icarus::ICARUSChannelMapAlg::SignalTypeForChannelImpl()
+} // icarus::ICARUSWireReadoutGeom::SignalTypeForChannelImpl()
 
 
 // -----------------------------------------------------------------------------
-auto icarus::ICARUSChannelMapAlg::extractWirelessChannelParams
+auto icarus::ICARUSWireReadoutGeom::extractWirelessChannelParams
   (Config::WirelessChannelStruct const& params) -> WirelessChannelCounts_t
 {
   return {
@@ -679,11 +659,11 @@ auto icarus::ICARUSChannelMapAlg::extractWirelessChannelParams
     }
     };
   
-} // icarus::ICARUSChannelMapAlg::extractWirelessChannelParams()
+} // icarus::ICARUSWireReadoutGeom::extractWirelessChannelParams()
 
 
 // ----------------------------------------------------------------------------
-std::string icarus::ICARUSChannelMapAlg::PlaneTypeName(PlaneType_t planeType) {
+std::string icarus::ICARUSWireReadoutGeom::PlaneTypeName(PlaneType_t planeType) {
   
   using namespace std::string_literals;
   switch (planeType) {
@@ -695,7 +675,7 @@ std::string icarus::ICARUSChannelMapAlg::PlaneTypeName(PlaneType_t planeType) {
       return "unsupported ("s + std::to_string(planeType) + ")"s;
   } // switch
   
-} // icarus::ICARUSChannelMapAlg::PlaneTypeName()
+} // icarus::ICARUSWireReadoutGeom::PlaneTypeName()
 
 
 // ----------------------------------------------------------------------------

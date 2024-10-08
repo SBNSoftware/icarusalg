@@ -16,10 +16,13 @@
 
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
+#include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 
 // LArSoft libraries
 #include "test/Geometry/geometry_unit_test_icarus.h"
+#include "test/Geometry/ChannelMapConfig.h"
 #include "larcorealg/test/Geometry/GeometryIteratorLoopTestAlg.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 
@@ -35,18 +38,16 @@
 // we use an existing class provided for this purpose, since our test
 // environment allows us to tailor it at run time.
 using IcarusGeometryConfiguration
-  = icarus::testing::IcarusGeometryEnvironmentConfiguration
-    <icarus::ICARUSChannelMapAlg>;
+  = icarus::testing::IcarusGeometryEnvironmentConfiguration;
 
 /*
  * GeometryTesterFixture, configured with the object above, is used in a
  * non-Boost-unit-test context.
  * It provides:
  * - `geo::GeometryCore const* Geometry()`
- * - `geo::GeometryCore const* GlobalGeometry()` (static member)
  */
 using IcarusGeometryTestEnvironment
-  = testing::GeometryTesterEnvironment<IcarusGeometryConfiguration>;
+  = testing::GeometryTesterEnvironment<IcarusGeometryConfiguration, icarus::GeoObjectSorterPMTasTPC>;
 
 
 //------------------------------------------------------------------------------
@@ -100,13 +101,19 @@ int main(int argc, char const** argv) {
   // testing environment setup
   //
   IcarusGeometryTestEnvironment TestEnvironment(config);
+
+  auto wireReadoutAlg =
+    std::make_unique<icarus::ICARUSWireReadoutGeom>(wireReadoutConfig(TestEnvironment),
+                                                    TestEnvironment.Geometry(),
+                                                    std::make_unique<geo::WireReadoutSorterICARUS>()
+                                                   );
   
   //
   // run the test algorithm
   //
   
   // 1. we initialize it with the geometry from the environment,
-  geo::GeometryIteratorLoopTestAlg Tester(TestEnvironment.Geometry());
+  geo::GeometryIteratorLoopTestAlg Tester(TestEnvironment.Geometry(), wireReadoutAlg.get());
   
   // 2. then we run it!
   unsigned int nErrors = Tester.Run();
