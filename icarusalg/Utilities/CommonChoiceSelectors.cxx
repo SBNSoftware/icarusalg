@@ -47,4 +47,31 @@ void util::decode(std::any const& src, TimeScale& value) {
   util::details::decodeEnumClassToFHiCL(src, value);
 }
 
+
+//==============================================================================
+//===  util::SignalPolarity  ===================================================
+//==============================================================================
+//------------------------------------------------------------------------------
+//--- util::StandardSelectorFor<SignalPolarity>
+//------------------------------------------------------------------------------
+namespace util {
+  
+  StandardSelectorFor<util::SignalPolarity>::StandardSelectorFor()
+    : MultipleChoiceSelection<util::SignalPolarity>{
+        { SignalPolarity::Negative, "Negative", "neg" }
+      , { SignalPolarity::Positive, "Positive", "pos" }
+      }
+    {}
+}
+
+//------------------------------------------------------------------------------
+::fhicl::detail::ps_atom_t util::encode(SignalPolarity const& value) {
+  return util::details::encodeEnumClassToFHiCL(value);
+}
+
+//------------------------------------------------------------------------------
+void util::decode(std::any const& src, SignalPolarity& value) {
+  util::details::decodeEnumClassToFHiCL(src, value);
+}
+
 //------------------------------------------------------------------------------
