@@ -85,9 +85,9 @@ class icarus::GeoObjectSorterPMTasTPC: public geo::GeoObjectSorterStandard {
       1.0 // default
       };
 
-    fhicl::Atom<double> ToleranceY {
-      Name("ToleranceY"),
-      Comment("tolerance when sorting optical detectors on y coordinate [cm]"),
+    fhicl::Atom<double> ToleranceZ {
+      Name("ToleranceZ"),
+      Comment("tolerance when sorting optical detectors on z coordinate [cm]"),
       1.0 // default
       };
 
@@ -101,7 +101,7 @@ class icarus::GeoObjectSorterPMTasTPC: public geo::GeoObjectSorterStandard {
   GeoObjectSorterPMTasTPC(fhicl::Table<Config, KeysToIgnore> const& config)
     : geo::GeoObjectSorterStandard(config.get_PSet())
     , fCmpX{ config().ToleranceX() }
-    , fCmpY{ config().ToleranceY() }
+    , fCmpZ{ config().ToleranceZ() }
     {}
   
   
@@ -116,15 +116,13 @@ class icarus::GeoObjectSorterPMTasTPC: public geo::GeoObjectSorterStandard {
    * This algorithm requires all optical detectors to have their center defined
    * (`geo::OpDetGeo::GetCenter()`). No other information is used.
    * 
-   * @note The current implementation is very sensitive to rounding errors!
-   * 
    */
   bool compareOpDets(geo::OpDetGeo const& od1, geo::OpDetGeo const& od2) const override;
   
     private:
   
   /// `geo::OpDetGeo` comparer according to one coordinate of their center.
-  /// Accomodates for some tolerance.
+  /// Accommodates for some tolerance.
   template <double (geo::Point_t::*Coord)() const>
   struct CoordComparer {
   
@@ -134,7 +132,7 @@ class icarus::GeoObjectSorterPMTasTPC: public geo::GeoObjectSorterStandard {
     /// Constructor: fixes the tolerance for the comparison.
     CoordComparer(double tol = 0.0): fCmp(tol) {}
   
-    /// Returns whether `A` has a center coordinate `Coord` smaller than `B`.
+    /// Returns whether `A` has a different coordinate `Coord` than `B`.
     bool operator() (geo::Point_t const& A, geo::Point_t const& B) const
       {
         return fCmp.nonEqual((A.*Coord)(), (B.*Coord)());
@@ -143,11 +141,11 @@ class icarus::GeoObjectSorterPMTasTPC: public geo::GeoObjectSorterStandard {
   }; // CoordComparer
 
 
-  /// Sorting criterium according to _x_ coordinate of `geo::OpDetGeo` center.
+  /// Comparison according to _x_ coordinate of `geo::OpDetGeo` center.
   CoordComparer<&geo::Point_t::X> const fCmpX;
 
-  /// Sorting criterium according to _y_ coordinate of `geo::OpDetGeo` center.
-  CoordComparer<&geo::Point_t::Y> const fCmpY;
+  /// Comparison according to _z_ coordinate of `geo::OpDetGeo` center.
+  CoordComparer<&geo::Point_t::Z> const fCmpZ;
 
 }; // icarus::GeoObjectSorterPMTasTPC
 
