@@ -89,8 +89,7 @@ BEGIN_PROLOG
 
 icarus_geometry_template: {
   SurfaceY:        6.9e2    # in cm, vertical distance to the surface
-  Name:      "icarus_v4"  # see ICARUS wiki for a list
-  GDML:      "icarus_complete_20220518_overburden.gdml"
+  Name:            "icarus_v2" # see ICARUS wiki for a list
 } # icarus_geometry_template
 
 
