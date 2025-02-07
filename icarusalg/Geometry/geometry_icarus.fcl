@@ -77,6 +77,8 @@
 #   no configuration for no-overburden detector;
 #   legacy (`icarus_v3`) configurations added;
 #   configurations renamed ("icarus_standard_geometry")
+# 20250206 (Kyle Knoepfel, petrillo@slac.stanford.edu, et al)
+#   updates for LArSoft v10
 #
 
 
@@ -89,7 +91,8 @@ BEGIN_PROLOG
 
 icarus_geometry_template: {
   SurfaceY:        6.9e2    # in cm, vertical distance to the surface
-  Name:            "icarus_v2" # see ICARUS wiki for a list
+  Name:           "icarus_v4"
+  GDML:           "icarus_refactored_nounderscore_20230918.gdml"
 } # icarus_geometry_template
 
 
@@ -169,8 +172,6 @@ icarus_standard_geometry: {
   SortingParameters: {
     tool_type: GeoObjectSorterPMTasTPC
   }
-  Name: "icarus_v4"
-  GDML: "icarus_refactored_nounderscore_20230918.gdml"
 }
 
 #
@@ -190,8 +191,8 @@ icarus_standard_auxdetgeometry: {
 icarus_standard_geometry_services: {
 
   AuxDetGeometry: @local::icarus_standard_auxdetgeometry
-  Geometry:               @local::icarus_standard_geometry
-  WireReadout: @local::icarus_standard_wire_readout
+  Geometry:       @local::icarus_standard_geometry
+  WireReadout:    @local::icarus_standard_wire_readout
   GeometryConfigurationWriter: {}
 
 } # icarus_standard_geometry_services
