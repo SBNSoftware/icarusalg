@@ -84,6 +84,7 @@ namespace icarus::waveform_operations {
       // --- BEGIN --- Operations relative to the baseline ---------------------
       /// @name Operations relative to the baseline
       /// @{
+      
       /// Returns the current baseline.
       Sample_t baseline() const { return fBaseline; }
       
