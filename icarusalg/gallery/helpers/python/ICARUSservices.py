@@ -37,6 +37,28 @@ class ICARUSGeometryServiceGetter(LArSoftUtils.SimpleServiceLoader):
 # class ICARUSGeometryServiceGetter
 
 
+class ICARUSWireReadoutServiceGetter(LArSoftUtils.SimpleServiceLoader):
+
+  def __init__(self):
+    LArSoftUtils.SimpleServiceLoader.__init__(self, 'WireReadout')
+
+  def load(self, manager):
+    return ICARUSutils.loadICARUSwireReadout(registry=manager.registry())
+
+# class ICARUSGeometryServiceGetter
+
+
+class ICARUSAuxDetGeometryServiceGetter(LArSoftUtils.SimpleServiceLoader):
+
+  def __init__(self):
+    LArSoftUtils.SimpleServiceLoader.__init__(self, 'AuxGeometry')
+
+  def load(self, manager):
+    return ICARUSutils.loadICARUSAuxDetGeometry(registry=manager.registry())
+
+# class ICARUSGeometryServiceGetter
+
+
 ################################################################################
 ###  module setup - part I
 ###
@@ -90,6 +112,8 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
     #
 
     self.manager.registerLoader('Geometry', ICARUSGeometryServiceGetter())
+    self.manager.registerLoader('WireReadout', ICARUSWireReadoutServiceGetter())
+    self.manager.registerLoader('AuxDetGeometry', ICARUSAuxDetGeometryServiceGetter())
 
     return self.manager
 

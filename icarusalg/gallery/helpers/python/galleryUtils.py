@@ -354,7 +354,7 @@ def getTableIfPresent(
  type_: "type to look for (instead of ROOT.fhicl.ParameterSet)" = None,
  ) -> "ParameterSet with `key` in `pset`, or `defValue` if not present":
   
-  try: return pset.get(type_ if type_ else ROOT.fhicl.ParameterSet)(key)
+  try: return pset.get[type_ if type_ else ROOT.fhicl.ParameterSet](key)
   except Exception: return defValue
   
 # getTableIfPresent()
