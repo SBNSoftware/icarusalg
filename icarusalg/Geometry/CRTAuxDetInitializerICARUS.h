@@ -7,9 +7,9 @@
 
 namespace icarus::crt {
 
-  class CRTAuxDetInitializer : public geo::AuxDetInitializer {
+  class CRTAuxDetInitializerICARUS : public geo::AuxDetInitializer {
   public:
-    explicit CRTAuxDetInitializer(fhicl::ParameterSet const&);
+    explicit CRTAuxDetInitializerICARUS(fhicl::ParameterSet const&);
 
   private:
     geo::AuxDetReadoutInitializers

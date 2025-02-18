@@ -47,9 +47,9 @@ ICARUSchannelMappings = {
                      ],
   },
   'CRTAuxDetInitializer': {
-    'mapperClassName': 'icarus::crt::CRTAuxDetInitializer',
+    'mapperClassName': 'icarus::crt::CRTAuxDetInitializerICARUS',
     'load':          [
-                       'icarusalg/Geometry/CRTAuxDetInitializer.h',
+                       'icarusalg/Geometry/CRTAuxDetInitializerICARUS.h',
                        'icarusalg_Geometry',
                      ],
   },

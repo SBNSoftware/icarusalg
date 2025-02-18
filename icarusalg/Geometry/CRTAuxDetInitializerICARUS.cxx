@@ -1,4 +1,4 @@
-#include "CRTAuxDetInitializer.h"
+#include "CRTAuxDetInitializerICARUS.h"
 
 #include "icaruscode/CRT/CRTGeoObjectSorter.h"
 #include "icaruscode/CRT/compareCRTs.h"
@@ -11,10 +11,10 @@
 
 namespace icarus::crt {
 
-  CRTAuxDetInitializer::CRTAuxDetInitializer(fhicl::ParameterSet const&) {}
+  CRTAuxDetInitializerICARUS::CRTAuxDetInitializerICARUS(fhicl::ParameterSet const&) {}
 
   geo::AuxDetReadoutInitializers
-  CRTAuxDetInitializer::initialize(std::vector<geo::AuxDetGeo> const& adgeo) const {
+  CRTAuxDetInitializerICARUS::initialize(std::vector<geo::AuxDetGeo> const& adgeo) const {
 
     geo::AuxDetReadoutInitializers result;
     auto& [ADGeoToName, NameToADGeo, ADGeoToChannelAndSV] = result;
