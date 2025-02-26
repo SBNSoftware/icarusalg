@@ -75,11 +75,9 @@ def getConfiguration(
   # serviceName = 'WireReadout'
   try:
     serviceConfig = config.service(serviceName) if config else registry.config(serviceName)
-    print(serviceConfig.to_string())
   except Exception: serviceConfig = None
   if serviceConfig and serviceConfig.has_key('SortingParameters'):
     mapperConfig = galleryUtils.getTableIfPresent(serviceConfig, 'SortingParameters')
-    print(mapperConfig.to_string())
   else:
     serviceName = 'ExptGeoHelperInterface'
     serviceConfig = config.service(serviceName) if config else registry.config(serviceName)
@@ -116,11 +114,9 @@ def getInitializerConfiguration(
 
   try:
     serviceConfig = config.service(serviceName) if config else registry.config(serviceName)
-    print(serviceConfig.to_string())
   except Exception: serviceConfig = None
   if serviceConfig and serviceConfig.has_key('ReadoutInitializer'):
     initializerConfig = galleryUtils.getTableIfPresent(serviceConfig, 'ReadoutInitializer')
-    print(initializerConfig.to_string())
   else:
     return None
 
@@ -163,7 +159,6 @@ def loadICARUSClass(
       return None
   else:
     plugin_type = getConfiguration(config=config, registry=registry, serviceName=serviceName)
-  print('plugin_type', plugin_type)
 
 
   #
