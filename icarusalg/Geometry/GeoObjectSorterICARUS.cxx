@@ -21,8 +21,8 @@ namespace geo{
   //----------------------------------------------------------------------------
   bool GeoObjectSorterICARUS::compareCryostats(CryostatGeo const& c1, CryostatGeo const& c2) const
   {
-    auto const xyz1 = c1.GetCenter();
-    auto const xyz2 = c2.GetCenter();
+    auto const& xyz1 = c1.GetCenter();
+    auto const& xyz2 = c2.GetCenter();
 
     return xyz1.X() < xyz2.X();
   }
@@ -30,8 +30,8 @@ namespace geo{
   //----------------------------------------------------------------------------
   bool GeoObjectSorterICARUS::compareTPCs(TPCGeo const& t1, TPCGeo const& t2) const
   {
-    auto const xyz1 = t1.GetCenter();
-    auto const xyz2 = t2.GetCenter();
+    auto const& xyz1 = t1.GetCenter();
+    auto const& xyz2 = t2.GetCenter();
 
     // sort TPCs according to x
     return xyz1.X() < xyz2.X();

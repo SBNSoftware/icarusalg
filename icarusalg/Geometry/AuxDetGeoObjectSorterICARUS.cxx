@@ -1,10 +1,10 @@
-////////////////////////////////////////////////////////////////////////
-/// \file  GeoObjectSorterICARUS.cxx
-/// \brief Interface to algorithm class for sorting standard geo::XXXGeo objects
-///
-/// \version $Id:  $
-/// \author  brebel@fnal.gov
-////////////////////////////////////////////////////////////////////////
+/**
+ * @file   icarusalg/Geometry/AuxDetGeoObjectSorterICARUS.cxx
+ * @brief  Interface to algorithm class for sorting standard geo::XXXGeo objects
+ * @author Chris Hilgenberg
+ * @date   August 7, 2018.
+ * @see    icarusalg/Geometry/AuxDetGeoObjectSorterICARUS.h
+ */
 
 #include "icarusalg/Geometry/AuxDetGeoObjectSorterICARUS.h"
 

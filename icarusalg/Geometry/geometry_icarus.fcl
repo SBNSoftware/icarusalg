@@ -300,7 +300,7 @@ icarus_legacy_base_geometry: {
 
 icarus_legacy_base_geometry_services: {
   Geometry:               @local::icarus_legacy_base_geometry
-  WireReadout: @local::icarus_legacy_base_wire_readout
+  WireReadout:            @local::icarus_legacy_base_wire_readout
   GeometryConfigurationWriter: {}
 } # icarus_legacy_base_geometry_services
 

@@ -1,12 +1,11 @@
-////////////////////////////////////////////////////////////////////////
-/// \file  AuxDetGeoObjectSorterICARUS.h
-/// \brief Interface to algorithm class for standard sorting of geo::XXXGeo objects
-///
-/// \version $Id:  $
-/// \author  wketchum@fnal.gov
-////////////////////////////////////////////////////////////////////////
-#ifndef GEO_AUXDETGEOOBJECTSORTERICARUS_H
-#define GEO_AUXDETGEOOBJECTSORTERICARUS_H
+/**
+ * @file  icarusalg/Geometry/AuxDetGeoObjectSorterICARUS.h
+ * @brief Interface to algorithm class for standard sorting of geo::XXXGeo objects
+ *
+ * @author Chris Hilgenberg
+ */
+#ifndef ICARUSALG_GEOMETRY_AUXDETGEOOBJECTSORTERICARUS_H
+#define ICARUSALG_GEOMETRY_AUXDETGEOOBJECTSORTERICARUS_H
 
 #include "larcorealg/Geometry/AuxDetGeoObjectSorter.h"
 
@@ -26,4 +25,4 @@ namespace geo{
 
 }
 
-#endif // GEO_AUXDETGEOOBJECTSORTERICARUS_H
+#endif // ICARUSALG_GEOMETRY_AUXDETGEOOBJECTSORTERICARUS_H

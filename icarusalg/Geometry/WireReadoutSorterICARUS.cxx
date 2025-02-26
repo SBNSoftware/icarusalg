@@ -1,10 +1,7 @@
-////////////////////////////////////////////////////////////////////////
-/// \file  GeoObjectSorterICARUS.cxx
-/// \brief Interface to algorithm class for sorting standard geo::XXXGeo objects
-///
-/// \version $Id:  $
-/// \author  brebel@fnal.gov
-////////////////////////////////////////////////////////////////////////
+/**
+ * @file  icarusalg/Geometry/WireReadoutSorterICARUS.cxx
+ * @brief Interface to algorithm class for sorting standard geo::XXXGeo objects
+ */
 
 #include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 
@@ -21,7 +18,8 @@ namespace geo {
 
   //----------------------------------------------------------------------------
   bool WireReadoutSorterICARUS::compareWires(WireGeo const& w1, WireGeo const& w2) const {
-    auto const [xyz1, xyz2] = std::pair{w1.GetCenter(), w2.GetCenter()};
+    auto const& xyz1 = w1.GetCenter();
+    auto const& xyz2 = w2.GetCenter();
 
     //we have horizontal wires...
     if( std::abs(xyz1.Z()-xyz2.Z()) < EPSILON)
