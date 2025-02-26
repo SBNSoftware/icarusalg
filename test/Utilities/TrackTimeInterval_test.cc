@@ -18,7 +18,9 @@
 
 // ICARUS libraries
 #include "icarusalg/Utilities/TrackTimeInterval.h"
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 
 // LArSoft libraries
 #include "lardataalg/DetectorInfo/DetectorPropertiesStandard.h"
@@ -31,6 +33,7 @@
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/StandaloneGeometrySetup.h"
 #include "larcorealg/CoreUtils/counter.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcorealg/TestUtils/boost_unit_test_base.h"
@@ -52,9 +55,9 @@
 //---  The test environment
 //---
 
-using TesterConfiguration =
-  testing::BasicGeometryEnvironmentConfiguration<icarus::ICARUSChannelMapAlg>;
-using TestEnvironment = testing::GeometryTesterEnvironment<TesterConfiguration>;
+using TesterConfiguration = testing::BasicGeometryEnvironmentConfiguration;
+using TestEnvironment = testing::GeometryTesterEnvironment<TesterConfiguration,
+                                                           icarus::GeoObjectSorterPMTasTPC>;
 
 
 class TestFixture {
@@ -77,6 +80,10 @@ class TestFixture {
       
       gEnv.emplace(config);
       TestEnvironment& testEnv = *gEnv;
+      using lar::standalone::SetupReadout;
+      auto wireReadout = SetupReadout<geo::WireReadoutSorterICARUS, icarus::ICARUSWireReadoutGeom>
+                           ({}, testEnv.Provider<geo::GeometryCore>());
+      testEnv.AcquireProvider(std::move(wireReadout));
       // DetectorPropertiesStandard and all its dependencies support the simple set
       // up (see testing::TesterEnvironment::SimpleProviderSetup()), except for
       // Geometry, that has been configured already in the geometry-aware
@@ -153,15 +160,16 @@ BOOST_AUTO_TEST_CASE(PrintHitsOnAllPlanes)
     = testEnv.Provider<detinfo::DetectorClocks>()->DataForJob();
   
   geo::GeometryCore const& geom = *(testEnv.Provider<geo::GeometryCore>());
+  geo::WireReadoutGeom const& wireReadout = *(testEnv.Provider<geo::WireReadoutGeom>());
   detinfo::DetectorPropertiesData detProp
     = testEnv.Provider<detinfo::DetectorProperties>()->DataFor(detClockData);
   
   const int MaxTick = detProp.ReadOutWindowSize();
   
   lar::util::TrackTimeInterval const chargeTime
-    { geom, detProp, detinfo::DetectorTimings{ detClockData } };
+    { geom, wireReadout, detProp, detinfo::DetectorTimings{ detClockData } };
   
-  for (geo::PlaneGeo const& plane: geom.Iterate<geo::PlaneGeo>()) {
+  for (geo::PlaneGeo const& plane: wireReadout.Iterate<geo::PlaneGeo>()) {
     
     //
     // make some hits on this plane
@@ -169,8 +177,8 @@ BOOST_AUTO_TEST_CASE(PrintHitsOnAllPlanes)
     std::vector<recob::Hit> hits;
     
     geo::WireID const wireID{ plane.ID(), 1 };
-    raw::ChannelID_t const channel = geom.PlaneWireToChannel(wireID);
-    geo::SigType_t const signalType = geom.SignalType(channel);
+    raw::ChannelID_t const channel = wireReadout.PlaneWireToChannel(wireID);
+    geo::SigType_t const signalType = wireReadout.SignalType(channel);
     geo::View_t const view = plane.View();
     
     int tick = 0;
@@ -209,29 +217,30 @@ BOOST_AUTO_TEST_CASE(HitsOnPlanes)
   detinfo::DetectorTimings const detTiming{ detClockData };
   
   geo::GeometryCore const& geom = *(testEnv.Provider<geo::GeometryCore>());
+  geo::WireReadoutGeom const& wireReadout = *(testEnv.Provider<geo::WireReadoutGeom>());
   detinfo::DetectorPropertiesData detProp
     = testEnv.Provider<detinfo::DetectorProperties>()->DataFor(detClockData);
   
-  lar::util::TrackTimeInterval const chargeTime{ geom, detProp, detTiming };
+  lar::util::TrackTimeInterval const chargeTime{ geom, wireReadout, detProp, detTiming };
   
-  electronics_time const triggerTime [[maybe_unused]] = detTiming.TriggerTime();
+  electronics_time const triggerTime = detTiming.TriggerTime();
   
   double const driftVelocity = detProp.DriftVelocity();
   
   for (geo::TPCGeo const& TPC: geom.Iterate<geo::TPCGeo>()) {
     
     // refer to the first plane (ICARUS does that)
-    geo::Point_t const firstPlaneCenter = TPC.FirstPlane().GetCenter();
+    geo::Point_t const firstPlaneCenter = wireReadout.FirstPlane(TPC.ID()).GetCenter();
     geo::Point_t const cathodeCenter = TPC.GetCathodeCenter();
     double const driftDistance
       = std::abs(cathodeCenter.X() - firstPlaneCenter.X());
     util::quantities::microseconds const driftTime
       { driftDistance / driftVelocity };
     
-    for (geo::PlaneGeo const& plane: TPC.IteratePlanes()) {
+    for (geo::PlaneGeo const& plane: wireReadout.Iterate<geo::PlaneGeo>(TPC.ID())) {
       geo::WireID const wireID{ plane.ID(), 1 };
-      raw::ChannelID_t const channel = geom.PlaneWireToChannel(wireID);
-      geo::SigType_t const signalType = geom.SignalType(channel);
+      raw::ChannelID_t const channel = wireReadout.PlaneWireToChannel(wireID);
+      geo::SigType_t const signalType = wireReadout.SignalType(channel);
       geo::View_t const view = plane.View();
       
       // a hit at the anode at trigger time arrives immediately at trigger time;
@@ -285,10 +294,11 @@ BOOST_AUTO_TEST_CASE(PrintHitTimes)
   detinfo::DetectorTimings const detTiming{ detClockData };
   
   geo::GeometryCore const& geom = *(testEnv.Provider<geo::GeometryCore>());
+  geo::WireReadoutGeom const& wireReadout = *(testEnv.Provider<geo::WireReadoutGeom>());
   detinfo::DetectorPropertiesData detProp
     = testEnv.Provider<detinfo::DetectorProperties>()->DataFor(detClockData);
   
-  lar::util::TrackTimeInterval const chargeTime{ geom, detProp, detTiming };
+  lar::util::TrackTimeInterval const chargeTime{ geom, wireReadout, detProp, detTiming };
   
   double const driftVelocity = detProp.DriftVelocity(); // cm/us
   
@@ -297,10 +307,10 @@ BOOST_AUTO_TEST_CASE(PrintHitTimes)
   BOOST_TEST_MESSAGE("Hit times for " << TPC.ID());
   
   double const driftLength = std::abs(
-    TPC.DriftDir().Dot(TPC.GetCathodeCenter() - TPC.FirstPlane().GetCenter())
+    TPC.DriftDir().Dot(TPC.GetCathodeCenter() - wireReadout.FirstPlane(TPC.ID()).GetCenter())
     );
   
-  geo::PlaneGeo const& plane = TPC.FirstPlane();
+  geo::PlaneGeo const& plane = wireReadout.FirstPlane(TPC.ID());
   geo::WireID::WireID_t const refWireNo = 100;
   
   double const xC = TPC.GetCathodeCenter().X();
@@ -308,8 +318,8 @@ BOOST_AUTO_TEST_CASE(PrintHitTimes)
   auto const xCoord = [x0=xA,L=xC-xA](double u){ return x0 + L * u; };
   
   raw::ChannelID_t const refChannel
-    = geom.PlaneWireToChannel({ plane.ID(), 100 });
-  geo::SigType_t const signalType = geom.SignalType(refChannel);
+    = wireReadout.PlaneWireToChannel({ plane.ID(), 100 });
+  geo::SigType_t const signalType = wireReadout.SignalType(refChannel);
   geo::View_t const view = plane.View();
   
   std::default_random_engine engine; // default seed, not that random
@@ -347,11 +357,12 @@ BOOST_AUTO_TEST_CASE(timeRangeOfHits_singleTPCset)
   detinfo::DetectorTimings const detTiming{ detClockData };
   
   geo::GeometryCore const& geom = *(testEnv.Provider<geo::GeometryCore>());
+  geo::WireReadoutGeom const& wireReadout = *(testEnv.Provider<geo::WireReadoutGeom>());
   detinfo::DetectorPropertiesData detProp
     = testEnv.Provider<detinfo::DetectorProperties>()->DataFor(detClockData);
   
   // let's try the maker this time...
-  lar::util::TrackTimeIntervalMaker const trackTimeIntervalMaker{ geom };
+  lar::util::TrackTimeIntervalMaker const trackTimeIntervalMaker{ geom, wireReadout };
   lar::util::TrackTimeInterval const chargeTime
     = trackTimeIntervalMaker(detProp, detTiming);
   
@@ -362,10 +373,10 @@ BOOST_AUTO_TEST_CASE(timeRangeOfHits_singleTPCset)
     BOOST_TEST_MESSAGE("Track test for " << TPC.ID());
     
     double const driftLength = std::abs(
-      TPC.DriftDir().Dot(TPC.GetCathodeCenter() - TPC.FirstPlane().GetCenter())
+      TPC.DriftDir().Dot(TPC.GetCathodeCenter() - wireReadout.FirstPlane(TPC.ID()).GetCenter())
       );
     
-    geo::PlaneGeo const& plane = TPC.FirstPlane();
+    geo::PlaneGeo const& plane = wireReadout.FirstPlane(TPC.ID());
     geo::WireID::WireID_t const refWireNo = 100;
     
     double const xC = TPC.GetCathodeCenter().X();
@@ -373,8 +384,8 @@ BOOST_AUTO_TEST_CASE(timeRangeOfHits_singleTPCset)
     auto const xCoord = [x0=xA,L=xC-xA](double u){ return x0 + L * u; };
     
     raw::ChannelID_t const refChannel
-      = geom.PlaneWireToChannel({ plane.ID(), 100 });
-    geo::SigType_t const signalType = geom.SignalType(refChannel);
+      = wireReadout.PlaneWireToChannel({ plane.ID(), 100 });
+    geo::SigType_t const signalType = wireReadout.SignalType(refChannel);
     geo::View_t const view = plane.View();
     
     std::default_random_engine engine; // default seed, not that random

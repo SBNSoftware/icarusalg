@@ -22,7 +22,7 @@
 
 // ICARUS libraries
 #include "icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h"
-#include "icarusalg/Geometry/ICARUSChannelMapAlg.h"
+#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
 
 // LArSoft and framework libraries
 #include "larcorealg/Geometry/GeometryCore.h"
@@ -60,7 +60,7 @@ namespace icarus::geo {
  * 
  * ICARUS geometry configuration has special conventions, which include:
  *  * a full `ChannelMapping` configuration in the `Geometry` configuration
- *    block, equivalent to the one passed to `ExptGeoHelperInterface` service;
+ *    block, equivalent to the one passed to `WireReadout` service;
  *  * within it, a `tool_type` name.
  * 
  * The `ChannelMapping` table *must* be present in the configuration, and the
@@ -142,11 +142,11 @@ icarus::geo::LoadStandardICARUSgeometry [[nodiscard]]
       );
   }
   
-  std::string const channelMappingToolType
+  std::string const wireReadoutpingToolType
     = geomConfig.get("ChannelMapping.tool_type", ""s);
-  if (channelMappingToolType != MagicToolName) {
+  if (wireReadoutpingToolType != MagicToolName) {
     throw std::runtime_error("icarus::geo::LoadStandardICARUSgeometry() "
-      ": unexpected value '" + channelMappingToolType
+      ": unexpected value '" + wireReadoutpingToolType
       + "' for `ChannelMapping.tool_type` configuration parameter (expected: '"
       + MagicToolName + "').\nConfiguration:\n"
       + std::string(80, '-') + '\n'
@@ -165,7 +165,7 @@ icarus::geo::LoadStandardICARUSgeometry [[nodiscard]]
   
   
   // 4. return the geometry object
-  return SetupICARUSGeometry<icarus::ICARUSChannelMapAlg>(geomConfig);
+  return SetupICARUSGeometry<icarus::ICARUSWireReadoutGeom>(geomConfig);
   
 } // icarus::geo::LoadStandardICARUSgeometry()
 

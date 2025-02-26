@@ -350,7 +350,8 @@ geo::View_t icarus::details::ROPnumberDispatcher::ROPview
 // ---  icarus::details::ROPandTPCsetBuildingAlg
 // -----------------------------------------------------------------------------
 auto icarus::details::ROPandTPCsetBuildingAlg::run
-  (geo::GeometryData_t::CryostatList_t const& Cryostats) -> Results_t
+  (geo::WireReadoutGeom const& wireReadout,
+   std::vector<geo::CryostatGeo> const& Cryostats) -> Results_t
 {
   /*
    *  The goals:
@@ -391,7 +392,7 @@ auto icarus::details::ROPandTPCsetBuildingAlg::run
     { return std::abs(plane.ThetaZ()) < 1e-3; };
   
   std::vector<std::vector<PlaneColl_t>> AllPlanesInROPs
-    = groupPlanesAndTPCs(standaloneHorizontalWires);
+    = groupPlanesAndTPCs(wireReadout, standaloneHorizontalWires);
   
   std::vector<std::vector<std::vector<geo::TPCID>>> const AllTPCsInTPCsets
     = extractTPCsetsFromROPs(AllPlanesInROPs);
@@ -416,8 +417,8 @@ auto icarus::details::ROPandTPCsetBuildingAlg::run
   //
   // 5. invert the maps
   //
-  fillTPCtoTPCsetMap();
-  fillPlaneToROPmap();
+  fillTPCtoTPCsetMap(wireReadout);
+  fillPlaneToROPmap(wireReadout);
   
   //
   // output
@@ -454,7 +455,7 @@ void icarus::details::ROPandTPCsetBuildingAlg::clear() {
 // -----------------------------------------------------------------------------
 template <typename Pred>
 auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesAndTPCs
-  (Pred standalonePlane)
+  (geo::WireReadoutGeom const& wireReadout, Pred standalonePlane)
   -> std::vector<std::vector<PlaneColl_t>>
 {
   /*
@@ -466,7 +467,7 @@ auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesAndTPCs
   // input check
   //
   assert(fCryostats);
-  geo::GeometryData_t::CryostatList_t const& Cryostats = *fCryostats;
+  std::vector<geo::CryostatGeo> const& Cryostats = *fCryostats;
   
   //
   // output
@@ -498,11 +499,9 @@ auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesAndTPCs
     // readout plane sets
     //
     std::vector<geo::PlaneGeo const*> planes;
-    for (geo::TPCGeo const& tpc: cryo.IterateTPCs()) {
-      for (geo::PlaneGeo const& plane: tpc.IteratePlanes()) {
+    for (geo::PlaneGeo const& plane : wireReadout.Iterate<geo::PlaneGeo>(cryo.ID())) {
         planes.push_back(&plane);
-      } // for planes
-    } // for TPCs
+    }
     
     std::vector<PlaneColl_t> protoGroups = groupPlanesByDriftCoord(planes);
     
@@ -542,9 +541,9 @@ auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesAndTPCs
 
 
 // -----------------------------------------------------------------------------
-auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesAndTPCs()
+auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesAndTPCs(geo::WireReadoutGeom const& wireReadout)
   -> std::vector<std::vector<PlaneColl_t>>
-{ return groupPlanesAndTPCs([](geo::PlaneGeo const&){ return false; }); }
+{ return groupPlanesAndTPCs(wireReadout, [](geo::PlaneGeo const&){ return false; }); }
 
 
 // -----------------------------------------------------------------------------
@@ -614,7 +613,7 @@ void icarus::details::ROPandTPCsetBuildingAlg::fillTPCsInSet
   // input check
   //
   assert(fCryostats);
-  geo::GeometryData_t::CryostatList_t const& Cryostats = *fCryostats;
+  std::vector<geo::CryostatGeo> const& Cryostats = *fCryostats;
   
   unsigned int const MaxTPCsets = fMaxTPCsets;
   
@@ -674,7 +673,7 @@ auto icarus::details::ROPandTPCsetBuildingAlg::groupPlanesIntoROPs(
   // input check
   //
   assert(fCryostats);
-  geo::GeometryData_t::CryostatList_t const& Cryostats = *fCryostats;
+  std::vector<geo::CryostatGeo> const& Cryostats = *fCryostats;
   
   assert(!fTPCsetTPCs.empty());
   readout::TPCsetDataContainer<TPCColl_t> const& TPCsetTPCs = fTPCsetTPCs;
@@ -837,7 +836,7 @@ void icarus::details::ROPandTPCsetBuildingAlg::fillPlanesInROP(
 
 
 // ----------------------------------------------------------------------------
-void icarus::details::ROPandTPCsetBuildingAlg::fillTPCtoTPCsetMap() {
+void icarus::details::ROPandTPCsetBuildingAlg::fillTPCtoTPCsetMap(geo::WireReadoutGeom const& wireReadout) {
   
   //
   // invert the TPC sets map content
@@ -856,7 +855,7 @@ void icarus::details::ROPandTPCsetBuildingAlg::fillTPCtoTPCsetMap() {
   // output
   //
   auto const [ NCryostats, MaxTPCs ]
-    = geo::details::extractMaxGeometryElements<2U>(Cryostats);
+    = geo::details::extractMaxGeometryElements<2U>(Cryostats, wireReadout);
 
   MF_LOG_TRACE(fLogCategory)
     << "Detected " << NCryostats << " cryostats."
@@ -887,7 +886,7 @@ void icarus::details::ROPandTPCsetBuildingAlg::fillTPCtoTPCsetMap() {
 
 
 // ----------------------------------------------------------------------------
-void icarus::details::ROPandTPCsetBuildingAlg::fillPlaneToROPmap() {
+void icarus::details::ROPandTPCsetBuildingAlg::fillPlaneToROPmap(geo::WireReadoutGeom const& wireReadout) {
   
   //
   // invert the TPC sets map content
@@ -906,7 +905,7 @@ void icarus::details::ROPandTPCsetBuildingAlg::fillPlaneToROPmap() {
   // output
   //
   auto const [ NCryostats, MaxTPCs, MaxPlanes ]
-    = geo::details::extractMaxGeometryElements<3U>(Cryostats);
+    = geo::details::extractMaxGeometryElements<3U>(Cryostats, wireReadout);
 
   MF_LOG_TRACE(fLogCategory)
     << "Detected " << NCryostats << " cryostats."
