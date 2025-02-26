@@ -1,12 +1,9 @@
-////////////////////////////////////////////////////////////////////////
-/// \file  GeoObjectSorterICARUS.h
-/// \brief Interface to algorithm class for standard sorting of geo::XXXGeo objects
-///
-/// \version $Id:  $
-/// \author  wketchum@fnal.gov
-////////////////////////////////////////////////////////////////////////
-#ifndef GEO_WIREREADOUTSORTERICARUS_H
-#define GEO_WIREREADOUTSORTERICARUS_H
+/**
+ * @file  icarusalg/Geometry/WireReadoutSorterICARUS.h
+ * @brief Interface to algorithm class for standard sorting of geo::XXXGeo objects
+ */
+#ifndef ICARUSALG_GEOMETRY_WIREREADOUTSORTERICARUS_H
+#define ICARUSALG_GEOMETRY_WIREREADOUTSORTERICARUS_H
 
 #include "fhiclcpp/fwd.h"
 
@@ -25,4 +22,4 @@ namespace geo {
 
 }
 
-#endif // GEO_GEOOBJECTSORTERICARUS_H
+#endif // ICARUSALG_GEOMETRY_WIREREADOUTSORTERICARUS_H

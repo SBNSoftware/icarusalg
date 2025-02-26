@@ -6,8 +6,8 @@
  * @see    `icarusalg/Geometry/ICARUSWireReadoutGeom.cxx`
  */
 
-#ifndef ICARUSCODE_GEOMETRY_ICARUSCHANNELMAPALG_H
-#define ICARUSCODE_GEOMETRY_ICARUSCHANNELMAPALG_H
+#ifndef ICARUSCODE_GEOMETRY_ICARUSWIREREADOUTGEOM_H
+#define ICARUSCODE_GEOMETRY_ICARUSWIREREADOUTGEOM_H
 
 // ICARUS libraries
 #include "icarusalg/Geometry/details/ChannelToWireMap.h"
@@ -762,4 +762,4 @@ class icarus::ICARUSWireReadoutGeom: public geo::WireReadoutGeom {
 }; // class icarus::ICARUSWireReadoutGeom
 
 
-#endif // ICARUSCODE_GEOMETRY_ICARUSCHANNELMAPALG_H
+#endif // ICARUSCODE_GEOMETRY_ICARUSWIREREADOUTGEOM_H
