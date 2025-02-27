@@ -15,4 +15,5 @@ cet_enable_asserts()
 add_subdirectory(Geometry)
 add_subdirectory(Utilities)
 add_subdirectory(PMT)
+add_subdirectory(python)
 
