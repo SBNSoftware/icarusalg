@@ -8,28 +8,19 @@
 #ifndef GEO_GEOOBJECTSORTERICARUS_H
 #define GEO_GEOOBJECTSORTERICARUS_H
 
-#include <vector>
+#include "larcorealg/Geometry/GeoObjectSorter.h"
 
 #include "fhiclcpp/fwd.h"
-
-#include "larcorealg/Geometry/GeoObjectSorter.h"
-#include "fhiclcpp/ParameterSet.h"
 
 namespace geo{
 
   class GeoObjectSorterICARUS : public GeoObjectSorter {
   public:
+    explicit GeoObjectSorterICARUS(fhicl::ParameterSet const&);
 
-    GeoObjectSorterICARUS(fhicl::ParameterSet const& p);
-
-    void SortAuxDets        (std::vector<geo::AuxDetGeo>          & adgeo)    const;
-    void SortAuxDetSensitive(std::vector<geo::AuxDetSensitiveGeo> & adsgeo)   const;
-    void SortCryostats      (std::vector<geo::CryostatGeo>        & cgeo)     const;
-    void SortTPCs           (std::vector<geo::TPCGeo>             & tgeo)     const;
-    void SortPlanes         (std::vector<geo::PlaneGeo>           & pgeo,
-                             geo::DriftDirection_t                  driftDir) const;
-    void SortWires          (std::vector<geo::WireGeo>            & wgeo)     const;
-
+  private:
+    bool compareCryostats(CryostatGeo const& c1, CryostatGeo const& c2) const override;
+    bool compareTPCs(TPCGeo const& t1, TPCGeo const& t2) const override;
   };
 
 }

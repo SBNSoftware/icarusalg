@@ -250,8 +250,8 @@ gdmldir	product_dir	gdml
 ####################################
 product		version		qual	flags		<table_format=2>
 guideline_sl	v4_0_0		-
-larsoftobj	v09_36_00	-
-sbnobj  	v09_19_05	-
+larsoftobj	v10_00_04	-
+sbnobj  	v10_00_03	-
 cetmodules	v3_24_01	-	only_for_build
 end_product_list
 ####################################

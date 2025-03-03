@@ -14,10 +14,10 @@
 #include "icarusalg/Geometry/details/GeometryObjectCollections.h"
 
 // LArSoft libraries
-#include "larcorealg/Geometry/GeometryData.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/fwd.h"
 #include "larcorealg/Geometry/ReadoutDataContainers.h"
 #include "larcorealg/Geometry/GeometryDataContainers.h"
 #include "larcoreobj/SimpleTypesAndConstants/readout_types.h" // readout::TPCsetID, ...
@@ -176,7 +176,7 @@ class icarus::details::ROPandTPCsetBuildingAlg {
    * the results one by one (see `Results_t` for the interface).
    * 
    */
-  Results_t run(geo::GeometryData_t::CryostatList_t const& Cryostats);
+  Results_t run(geo::WireReadoutGeom const& wireReadout, std::vector<geo::CryostatGeo> const& Cryostats);
   
   
     private:
@@ -189,7 +189,7 @@ class icarus::details::ROPandTPCsetBuildingAlg {
   // --- END -- Configuration --------------------------------------------------
   
   
-  geo::GeometryData_t::CryostatList_t const* fCryostats = nullptr;
+  std::vector<geo::CryostatGeo> const* fCryostats = nullptr;
   
   // --- BEGIN -- Output -------------------------------------------------------
   /// @name Output
@@ -245,7 +245,7 @@ class icarus::details::ROPandTPCsetBuildingAlg {
    */
   template <typename Pred>
   std::vector<std::vector<PlaneColl_t>> groupPlanesAndTPCs
-    (Pred standalonePlane);
+    (geo::WireReadoutGeom const& wireReadout, Pred standalonePlane);
   
   /**
    * @brief Extracts composition of all readout planes.
@@ -255,7 +255,7 @@ class icarus::details::ROPandTPCsetBuildingAlg {
    * a list of TPC sets (second index: TPC set within the cryostat)
    * each listing its TPC (third index: runs through all TPCs).
    */
-  std::vector<std::vector<PlaneColl_t>> groupPlanesAndTPCs();
+  std::vector<std::vector<PlaneColl_t>> groupPlanesAndTPCs(geo::WireReadoutGeom const& wireReadout);
   
   
   /**
@@ -332,7 +332,7 @@ class icarus::details::ROPandTPCsetBuildingAlg {
    * 
    * It requires `fCryostats` and `fTPCsetTPCs` to have been computed already.
    */
-  void fillTPCtoTPCsetMap();
+  void fillTPCtoTPCsetMap(geo::WireReadoutGeom const& wireReadout);
   
   
   /**
@@ -343,7 +343,7 @@ class icarus::details::ROPandTPCsetBuildingAlg {
    * It requires `fCryostats` and `fROPplanes` to have been computed
    * already.
    */
-  void fillPlaneToROPmap();
+  void fillPlaneToROPmap(geo::WireReadoutGeom const& wireReadout);
   
   /// Returns the `planes` sorted by decreasing normal coordinate.
   std::vector<PlaneColl_t> sortByNormalCoordinate
