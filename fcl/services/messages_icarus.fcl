@@ -63,7 +63,7 @@ message_debugfile_icarus: {
 
 message_infofile_icarus: {
   #
-  # message destination: all debug messages to a file
+  # message destination: all info messages to a file
   #
   type:       "file"
   filename:   "messages.log"
