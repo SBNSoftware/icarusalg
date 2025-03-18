@@ -256,7 +256,8 @@ class icarus::ICARUSWireReadoutGeom: public geo::WireReadoutGeom {
       };
     
     fhicl::Table<geo::WireReadoutGeomBuilderStandard::Config> builder {
-      Name("Builder")
+      Name("Builder"),
+      Comment("configuration of the WireReadoutGeomBuilderStandard algorithm")
     };
 
   }; // struct Config
