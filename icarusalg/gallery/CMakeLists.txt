@@ -1,5 +1,5 @@
-# official shared software
 add_subdirectory(helpers)
+add_subdirectory(examples)
 
 # examples
 install(DIRECTORY "examples/" DESTINATION "examples/gallery"
