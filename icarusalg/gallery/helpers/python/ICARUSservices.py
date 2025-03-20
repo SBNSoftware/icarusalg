@@ -15,26 +15,39 @@ python interactive session is started. The main code also show how to override
 the service manager setup by choosing a different service configuration.
 """
 
-__all__ = [ 'ServiceManager', 'geometry', ]
+__all__ = [ 'ServiceManager', 'geometry', 'wireReadout' ]
 
 
-import ICARUSutils  # loadICARUSgeometry()
+import ICARUSutils  # loadICARUSgeometry(), ...
 import LArSoftUtils
+from cppUtils import UnusedAttr
 
 
 ################################################################################
 ### special known services
 ###
 
-class ICARUSGeometryServiceGetter(LArSoftUtils.SimpleServiceLoader):
-
-  def __init__(self):
-    LArSoftUtils.SimpleServiceLoader.__init__(self, 'Geometry')
-
-  def load(self, manager):
+class ICARUSGeometryServiceGetter(LArSoftUtils.GeometryServiceGetter):
+  
+  def _loadService(self, manager, dependencies: UnusedAttr = {}):
     return ICARUSutils.loadICARUSgeometry(registry=manager.registry())
-
+  
 # class ICARUSGeometryServiceGetter
+
+class ICARUSWireReadoutServiceGetter(LArSoftUtils.WireReadoutServiceGetter):
+  
+  def _loadService(self, manager, dependencies = dict(Geometry=None)):
+    return ICARUSutils.loadICARUSwireReadout \
+      (registry=manager.registry(), geometry=dependencies['Geometry'])
+  
+# class ICARUSWireReadoutServiceGetter
+
+class ICARUSAuxDetGeometryServiceGetter(LArSoftUtils.AuxDetGeometryServiceGetter):
+  
+  def _loadService(self, manager, dependencies: UnusedAttr = {}):
+    return ICARUSutils.loadICARUSauxDetgeometry(registry=manager.registry())
+  
+# class ICARUSAuxDetGeometryServiceGetter
 
 
 ################################################################################
@@ -69,7 +82,7 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
   # defaultConfiguration()
 
   def __init__(self):
-    LArSoftUtils.ServiceManagerInstance.__init__(self)
+    super().__init__()
     self.setConfiguration(
       configFile=ICARUSserviceManagerClass.DefaultConfigPath,
       serviceTable=ICARUSserviceManagerClass.DefaultServiceTable,
@@ -79,18 +92,20 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
   def setup(self):
     """Prepares for ICARUS service provider access in python/Gallery."""
 
-    LArSoftUtils.ServiceManagerInstance.setup(self)
+    super().setup()
 
     #
     # register the services we know about;
     # some are already known
     # (`LArSoftUtils.ServiceManagerClass.StandardLoadingTable`), including
     # 'Geometry', 'LArProperties', 'DetectorClocks' and 'DetectorProperties',
-    # but se override the former with our flavor of it
+    # but we override the former with our flavor of it
     #
 
     self.manager.registerLoader('Geometry', ICARUSGeometryServiceGetter())
-
+    self.manager.registerLoader('WireReadout', ICARUSWireReadoutServiceGetter())
+    self.manager.registerLoader('AuxDetGeometry', ICARUSAuxDetGeometryServiceGetter())
+    
     return self.manager
 
   # setup()
@@ -103,7 +118,8 @@ ServiceManager = ICARUSserviceManagerClass()
 
 ################################################################################
 
-def geometry(): return ServiceManager.get('Geometry')
+def geometry():    return ServiceManager.get('Geometry')
+def wireReadout(): return ServiceManager.get('WireReadout')
 
 
 ################################################################################

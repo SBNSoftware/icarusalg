@@ -9,7 +9,8 @@ This module requires ROOT.
 
 __all__ = [
   'loadICARUSgeometry',
-  'justLoadICARUSgeometry',
+  'loadICARUSwireReadout',
+  'loadICARUSauxDetgeometry'
 ]
 
 import galleryUtils
@@ -19,73 +20,41 @@ from ROOTutils import ROOT
 
 
 ################################################################################
-ICARUSchannelMappings = {
-  'ICARUSsplitInductionChannelMapSetupTool': {
-    'tool_type':       'ICARUSsplitInductionChannelMapSetupTool',
-    'mapperClassName': 'icarus::ICARUSChannelMapAlg',
-    'load':          [
-                       'larcorealg_Geometry',
-                       'icarusalg/Geometry/ICARUSChannelMapAlg.h',
-                       'icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h',
-                       'icarusalg_Geometry',
-                     ],
-  }, # 'ICARUSsplitInductionChannelMapSetupTool'
+ICARUSwireReadoutSettings = {
+  'WireReadoutICARUS': {
+    'wireReadoutClassName': 'icarus::ICARUSWireReadoutGeom',
+    'load':               [
+                            'larcorealg_Geometry',
+                            'icarusalg/Geometry/ICARUSWireReadoutGeom.h',
+                            'icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h',
+                            'icarusalg_Geometry',
+                          ],
+  }, # 'WireReadoutICARUS'
 }
-DefaultChannelMapping = 'ICARUSsplitInductionChannelMapSetupTool'
+DefaultChannelMapping = 'WireReadoutICARUS'
 
 ################################################################################
 ### Geometry
 ###
-def getChannelMappingConfiguration(
-  config: "ConfigurationClass object with complete job configuration",
-  registry: "ServiceRegistryClass object with the configuration of all services",
-  ) -> "configuration of channel mapping algorithm as a FHiCL parameter set":
-
-  #
-  # Try first if there is a configuration in the geometry service configuration;
-  # this is the "default" for the future. If not, back up to
-  # ExptGeoHelperInterface service.
-  #
-
-  serviceName = 'Geometry'
-  try:
-    serviceConfig = config.service(serviceName) if config else registry.config(serviceName)
-  except Exception: serviceConfig = None
-  if serviceConfig and serviceConfig.has_key('ChannelMapping'):
-    mapperConfig = galleryUtils.getTableIfPresent(serviceConfig, 'ChannelMapping')
-  else:
-    serviceName = 'ExptGeoHelperInterface'
-    serviceConfig = config.service(serviceName) if config else registry.config(serviceName)
-    if serviceConfig is None:
-      raise RuntimeError("Failed to retrieve the configuration for %s service" % serviceName)
-    if serviceConfig.get(str)('service_provider') != 'IcarusGeometryHelper':
-      raise RuntimeError(
-      "{} in configuration is '{}', not IcarusGeometryHelper"
-      .format(serviceName, serviceConfig['service_provider'])
-      )
-    # if
-    mapperConfig = galleryUtils.getTableIfPresent(serviceConfig, 'Mapper')
-  # if no mapper in geometry service (or no geometry service??)
-
-  if mapperConfig:
-    try:
-      plugin_type = mapperConfig.get(str)('tool_type')
-    except:
-      raise RuntimeError(
-        "{} service configuration of channel mapping is missing the tool_type:\n{}"
-        .format(serviceName, mapperConfig.to_indented_string("  "))
-        )
-    # try ... except
-  else: plugin_type = DefaultChannelMapping
-
-  return plugin_type
-# getChannelMappingConfiguration()
-
-
-def loadICARUSchannelMappingClass(
-  config: "ConfigurationClass object with complete job configuration",
+def loadICARUSwireReadoutClass(
+  config: "WireReadout service configuration (as FHiCL parameter set)",
   registry: "ServiceRegistryClass object with the configuration of all services",
   ) -> "Class object for the proper channel mapping":
+  #
+  # The new pattern here (changed from icaruscode v10.04.04) is:
+  #  * WireReadout (art service) is an interface; the service implementation
+  #    is tasked with creating a `WireReadoutGeom` object. ICARUS uses its own
+  #    implementation of the service, which is called `WireReadoutICARUS`
+  #  * WireReadoutICARUS creates an instance of `WireReadoutICARUS`,
+  #    loading the geometry sorter to be used (for planes and wires) with an
+  #    art tool. The creation is straightforward, after a `GeometryCore` and a
+  #    sorter are provided.
+  # 
+  # The purpose of this function is to find which object needs to be used
+  # (`icarus::ICARUSWireReadoutGeom` in the above), load its definition and
+  # return a class object (not a `icarus::ICARUSWireReadoutGeom` object)
+  # that will be constructed by the caller (in the above "straightforward" way).
+  #
 
   #
   # we need to:
@@ -97,34 +66,32 @@ def loadICARUSchannelMappingClass(
   #
   # 1. find out which mapping is required: known configurations
   #
-  plugin_type = getChannelMappingConfiguration(config=config, registry=registry)
+  serviceProviderName = config.get[str]('service_provider')
 
   #
   # 2. load the proper libraries
   #
 
   # get the specification record
-  try: mappingInfo = ICARUSchannelMappings[plugin_type]
+  try: wireReadoutSetupInfo = ICARUSwireReadoutSettings[serviceProviderName]
   except KeyError:
     # when you get to this error, check that the tool name in the configuration
     # is actually spelled correctly first...
     raise RuntimeError(
-     "Mapping plug in not supported: '{}': Python library needs to be updated."
-     .format(plugin_type)
+     f"Wire readout geometry service not supported: '{serviceProviderName}': Python library needs to be updated."
      )
   # try ... except
 
   # load the libraries
-  for codeObj in mappingInfo.get('load', []):
+  for codeObj in wireReadoutSetupInfo.get('load', []):
     LArSoftUtils.SourceCode.load(codeObj)
 
   # get the class object
-  try: mapperClass = ROOTutils.getROOTclass(mappingInfo['mapperClassName'])
+  try: mapperClass = ROOTutils.getROOTclass(wireReadoutSetupInfo['wireReadoutClassName'])
   except AttributeError:
     # this needs investigation, as the code above should be sufficient to it
     raise RuntimeError(
-      "The library with '{}' has not been correctly loaded!"
-      .format(mappingInfo['mapperClassName'])
+      f"The library with '{wireReadoutSetupInfo['wireReadoutClassName']}' has not been correctly loaded!"
       )
   # try ... except
 
@@ -133,31 +100,93 @@ def loadICARUSchannelMappingClass(
   #
   return mapperClass
 
-# loadICARUSchannelMappingClass()
+# loadICARUSwireReadoutClass()
 
 
 def loadICARUSgeometry(
   config = None, registry = None, mappingClass = None,
   ):
-  """Loads and returns ICARUS geometry with the standard ICARUS channel mapping.
+  """Loads and returns ICARUS geometry with the standard ICARUS sorting.
 
   See `loadGeometry()` for the meaning of the arguments.
   """
 
-  if mappingClass is None:
-    mappingClass = loadICARUSchannelMappingClass(config=config, registry=registry)
-  return LArSoftUtils.loadGeometry \
-    (config=config, registry=registry, mapping=mappingClass)
+  SourceCode = LArSoftUtils.SourceCode # alias
+
+  SourceCode.loadHeaderFromUPS('icarusalg/Geometry/GeoObjectSorterPMTasTPC.h')
+  SourceCode.loadLibrary('icarusalg_Geometry')
+  return LArSoftUtils.loadGeometry(
+    config=config, registry=registry,
+    sorterClass=ROOT.icarus.GeoObjectSorterPMTasTPC,
+    )
+
 # loadICARUSgeometry()
 
 
-def justLoadICARUSgeometry(configFile, mappingClass = None):
-  """Loads and returns ICARUS geometry from the specified configuration file.
-
-  This is a one-stop procedure recommended only when running interactively.
+def loadICARUSwireReadout(config = None, registry = None, geometry = None):
+  """Loads and returns ICARUS wire readout with the standard ICARUS channel mapping.
+  
+  See `loadWireReadout()` for the meaning of the arguments.
   """
-  return loadICARUSgeometry(config=LArSoftUtils.ConfigurationClass(configFile))
-# justLoadICARUSgeometry()
+  
+  # we use the common `loadWireReadout()`, but before that, we need to load
+  # all the classes we need and instantiate the sorter.
+  assert registry or geometry, "Registry is required if no geometry is provided"
+
+  serviceName = 'WireReadout'
+  serviceConfig = config.service(serviceName) if config else registry.config(serviceName)
+  
+  wireReadoutClass = loadICARUSwireReadoutClass(config=serviceConfig, registry=registry)
+  
+  # we ignore the sorter specification from the configuration here
+  DefaultSorterClassName = "WireReadoutSorterStandard"
+  sorterClassName = serviceConfig.get[str]("SortingParameters.tool_type", DefaultSorterClassName)
+  if sorterClassName != DefaultSorterClassName:
+    # this may be as easy as just doing it...
+    raise RuntimeError(f"Sorting algorithm '{sorterClassName}' not supported.")
+  # try ...
+  
+  # whatever the sorter class is, it must have its own header named after it
+  # and be defined in icarusalg_Geometry library.
+  SourceCode = LArSoftUtils.SourceCode # alias
+  if sorterClassName == DefaultSorterClassName:
+    SourceCode.loadHeaderFromUPS(f'larcorealg/Geometry/WireReadoutSorterStandard.h')
+    SourceCode.loadLibrary('larcorealg_Geometry') # should be already loaded by now
+  else:
+    SourceCode.loadHeaderFromUPS(f'icarusalg/Geometry/{sorterClassName}.h')
+    SourceCode.loadLibrary('icarusalg_Geometry') # should be already loaded by now
+  sorter = getattr(ROOT.geo, sorterClassName)
+  
+  return LArSoftUtils.loadWireReadout(
+    config=config, registry=registry,
+    sorterClass=sorter,
+    serviceClass=wireReadoutClass,
+    geometry=geometry,
+    )
+  
+# loadICARUSwireReadout()
+
+
+def loadICARUSauxDetgeometry(config = None, registry = None):
+  """Loads and returns ICARUS geometry with the standard channel mapping.
+  
+  Because we can't yet figure out how to use a different mapping.
+  And however ICARUS uses a separate scheme for CRT channel mapping.
+  Which is in `icaruscode`.
+  
+  See `loadAuxDetGeometry()` for the meaning of the arguments.
+  """
+  SourceCode = LArSoftUtils.SourceCode # alias
+  
+  # SourceCode.loadHeaderFromUPS('icaruscode/CRT/CRTGeoObjectSorter.h')
+  # SourceCode.loadLibrary('icaruscode_CRTData')
+  # SourceCode.loadHeaderFromUPS('icaruscode/CRT/CRTAuxDetInitializerICARUS.h')
+  # SourceCode.loadLibrary('libicaruscode_CRT_CRTAuxDetInitializerICARUS_tool')
+
+  return LArSoftUtils.loadAuxDetGeometry(config=config, registry=registry)
+  #  , auxDetReadoutInitClass=ROOT.icarus.crt.CRTAuxDetInitializerICARUS)
+
+# loadICARUSauxDetgeometry()
 
 
 ################################################################################

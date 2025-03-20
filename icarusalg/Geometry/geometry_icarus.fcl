@@ -114,13 +114,12 @@ icarus_geometry_template: {
 # WireReadout
 #
 icarus_standard_wire_readout: {
-  service_provider: IcarusWireReadout
+  service_provider: WireReadoutICARUS
   SortingParameters: {
     tool_type: WireReadoutSorterStandard
   }
   Mapper: {
-    tool_type: "ICARUSsplitInductionWireReadoutSetupTool"
-  
+    
     WirelessChannels: {
       
       FirstInductionPreChannels:        0
