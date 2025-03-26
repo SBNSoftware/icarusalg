@@ -22,6 +22,9 @@
 #include "MCAssociations.h"
 
 // ICARUS code
+#include "icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
+#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
 #include "icarusalg/gallery/helpers/C++/expandInputFiles.h"
 
 // LArSoft
@@ -39,8 +42,10 @@
 // - Geometry
 #include "larcorealg/Geometry/StandaloneGeometrySetup.h"
 #include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 // - configuration
+#include "larcorealg/Geometry/WireReadoutSorterStandard.h"
 #include "larcorealg/Geometry/StandaloneBasicSetup.h"
 
 // gallery/canvas
@@ -95,7 +100,11 @@ int galleryAnalysis(std::string const& configFile, std::vector<std::string> cons
     //
   
     // geometry setup (it's special)
-    auto geom = lar::standalone::SetupGeometry<icarus::WireReadoutGeomICARUS>(config.get<fhicl::ParameterSet>("services.Geometry"));
+    auto geom = lar::standalone::SetupGeometry<icarus::GeoObjectSorterPMTasTPC>(config.get<fhicl::ParameterSet>("services.Geometry"));
+    
+  // wire readout (it's even more special)
+    auto wireReadout = lar::standalone::SetupReadout<geo::WireReadoutSorterStandard, icarus::WireReadoutGeomICARUS>
+      (config.get<fhicl::ParameterSet>("services.WireReadout"), geom.get());
   
     // LArProperties setup
     auto larp = testing::setupProvider<detinfo::LArPropertiesStandard>(config.get<fhicl::ParameterSet>("services.LArPropertiesService"));
@@ -105,8 +114,7 @@ int galleryAnalysis(std::string const& configFile, std::vector<std::string> cons
   
     // DetectorProperties setup
     auto detp = testing::setupProvider<detinfo::DetectorPropertiesStandard>(config.get<fhicl::ParameterSet>("services.DetectorPropertiesService"),
-                                                                            detinfo::DetectorPropertiesStandard::providers_type{geom.get(),
-                                                                              static_cast<detinfo::LArProperties const*>(larp.get())}); // TODO type cast is required until issue #18001 is solved
+                                                                            detinfo::DetectorPropertiesStandard::providers_type{geom.get(), wireReadout.get(), larp.get() });
   
     // ***************************************************************************
     // ***  SERVICE PROVIDER SETUP END    ****************************************
@@ -144,11 +152,11 @@ int galleryAnalysis(std::string const& configFile, std::vector<std::string> cons
     
     HitAnalysis::HitAnalysisAlg hitAnalysisAlg(analysisConfig.get<fhicl::ParameterSet>("hitAnalysisAlg"));
     
-    hitAnalysisAlg.setup(*geom, pHistFile.get());
+    hitAnalysisAlg.setup(*wireReadout, pHistFile.get());
     
     MCAssociations mcAssociations(analysisConfig.get<fhicl::ParameterSet>("mcAssociations"));
     auto const detProp = detp->DataFor(detclk->DataForJob());
-    mcAssociations.setup(*geom, detProp, pHistFile.get());
+    mcAssociations.setup(*geom, *wireReadout, detProp, pHistFile.get());
     mcAssociations.prepare();
     
     int numEvents(0);
