@@ -16,7 +16,7 @@
 
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 #include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
 #include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 
@@ -103,7 +103,7 @@ int main(int argc, char const** argv) {
   IcarusGeometryTestEnvironment TestEnvironment(config);
 
   auto wireReadoutAlg =
-    std::make_unique<icarus::ICARUSWireReadoutGeom>(wireReadoutConfig(TestEnvironment),
+    std::make_unique<icarus::WireReadoutGeomICARUS>(wireReadoutConfig(TestEnvironment),
                                                     TestEnvironment.Geometry(),
                                                     std::make_unique<geo::WireReadoutSorterICARUS>()
                                                    );

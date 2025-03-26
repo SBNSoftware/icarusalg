@@ -38,7 +38,7 @@
 #include "lardataalg/DetectorInfo/LArPropertiesStandardTestHelpers.h"
 #include "lardataalg/DetectorInfo/LArPropertiesStandard.h"
 // - Geometry
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 #include "larcorealg/Geometry/StandaloneGeometrySetup.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 
@@ -862,7 +862,7 @@ int makePlots
   // (and make sure the corresponding headers are also uncommented)
   //
   // geometry setup (it's special)
-  auto geom = lar::standalone::SetupGeometry<icarus::ICARUSWireReadoutGeom>
+  auto geom = lar::standalone::SetupGeometry<icarus::WireReadoutGeomICARUS>
     (config.get<fhicl::ParameterSet>("services.Geometry"));
 
   // LArProperties setup

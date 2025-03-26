@@ -22,10 +22,10 @@ from ROOTutils import ROOT
 ################################################################################
 ICARUSwireReadoutSettings = {
   'WireReadoutICARUS': {
-    'wireReadoutClassName': 'icarus::ICARUSWireReadoutGeom',
+    'wireReadoutClassName': 'icarus::WireReadoutGeomICARUS',
     'load':               [
                             'larcorealg_Geometry',
-                            'icarusalg/Geometry/ICARUSWireReadoutGeom.h',
+                            'icarusalg/Geometry/WireReadoutGeomICARUS.h',
                             'icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h',
                             'icarusalg_Geometry',
                           ],
@@ -51,8 +51,8 @@ def loadICARUSwireReadoutClass(
   #    sorter are provided.
   # 
   # The purpose of this function is to find which object needs to be used
-  # (`icarus::ICARUSWireReadoutGeom` in the above), load its definition and
-  # return a class object (not a `icarus::ICARUSWireReadoutGeom` object)
+  # (`icarus::WireReadoutGeomICARUS` in the above), load its definition and
+  # return a class object (not a `icarus::WireReadoutGeomICARUS` object)
   # that will be constructed by the caller (in the above "straightforward" way).
   #
 

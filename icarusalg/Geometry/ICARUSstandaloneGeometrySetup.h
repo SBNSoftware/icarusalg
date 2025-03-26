@@ -13,7 +13,7 @@
 
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 
 // LArSoft libraries
 #include "larcorealg/Geometry/GeometryCore.h"
@@ -31,13 +31,13 @@ namespace lar::standalone {
   
   // ---------------------------------------------------------------------------
   /// Specialization of `lar::standalone::SetupReadout()`
-  /// for ICARUS wire readout (`icarus::ICARUSWireReadoutGeom`).
+  /// for ICARUS wire readout (`icarus::WireReadoutGeomICARUS`).
   template <>
   inline std::unique_ptr<geo::WireReadoutGeom>
-  SetupReadout<geo::WireReadoutSorterStandard, icarus::ICARUSWireReadoutGeom>
+  SetupReadout<geo::WireReadoutSorterStandard, icarus::WireReadoutGeomICARUS>
     (fhicl::ParameterSet const& parameters, geo::GeometryCore const* geom)
   {
-    using WireReadout = icarus::ICARUSWireReadoutGeom;
+    using WireReadout = icarus::WireReadoutGeomICARUS;
     using Sorter = geo::WireReadoutSorterStandard;
     
     std::unique_ptr<geo::WireReadoutSorter> wireReadoutSorter
@@ -51,7 +51,7 @@ namespace lar::standalone {
     return std::make_unique<WireReadout>
       (mapperConfig, geom, std::move(wireReadoutSorter));
     
-  } // SetupReadout<WireReadoutSorterStandard,ICARUSWireReadoutGeom>()
+  } // SetupReadout<WireReadoutSorterStandard,WireReadoutGeomICARUS>()
   
   
   // ---------------------------------------------------------------------------

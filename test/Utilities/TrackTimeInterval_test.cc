@@ -19,7 +19,7 @@
 // ICARUS libraries
 #include "icarusalg/Utilities/TrackTimeInterval.h"
 #include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 #include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 
 // LArSoft libraries
@@ -81,7 +81,7 @@ class TestFixture {
       gEnv.emplace(config);
       TestEnvironment& testEnv = *gEnv;
       using lar::standalone::SetupReadout;
-      auto wireReadout = SetupReadout<geo::WireReadoutSorterICARUS, icarus::ICARUSWireReadoutGeom>
+      auto wireReadout = SetupReadout<geo::WireReadoutSorterICARUS, icarus::WireReadoutGeomICARUS>
                            ({}, testEnv.Provider<geo::GeometryCore>());
       testEnv.AcquireProvider(std::move(wireReadout));
       // DetectorPropertiesStandard and all its dependencies support the simple set

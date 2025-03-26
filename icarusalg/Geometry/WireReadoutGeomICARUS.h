@@ -1,13 +1,13 @@
 /**
- * @file   icarusalg/Geometry/ICARUSWireReadoutGeom.h
+ * @file   icarusalg/Geometry/WireReadoutGeomICARUS.h
  * @brief  Channel mapping algorithms for ICARUS detector.
  * @date   October 19, 2019
  * @author Gianluca Petrillo (petrillo@slac.stanford.edu)
- * @see    `icarusalg/Geometry/ICARUSWireReadoutGeom.cxx`
+ * @see    `icarusalg/Geometry/WireReadoutGeomICARUS.cxx`
  */
 
-#ifndef ICARUSCODE_GEOMETRY_ICARUSWIREREADOUTGEOM_H
-#define ICARUSCODE_GEOMETRY_ICARUSWIREREADOUTGEOM_H
+#ifndef ICARUSALG_GEOMETRY_WIREREADOUTGEOMICARUS_H
+#define ICARUSALG_GEOMETRY_WIREREADOUTGEOMICARUS_H
 
 // ICARUS libraries
 #include "icarusalg/Geometry/details/ChannelToWireMap.h"
@@ -37,7 +37,7 @@
 // forward declarations
 namespace icarus {
   
-  class ICARUSWireReadoutGeom;
+  class WireReadoutGeomICARUS;
   
 } // namespace icarus
 
@@ -162,7 +162,7 @@ namespace icarus {
  * 
  * 
  */
-class icarus::ICARUSWireReadoutGeom: public geo::WireReadoutGeom {
+class icarus::WireReadoutGeomICARUS: public geo::WireReadoutGeom {
   
   // import definitions
   using TPCColl_t = icarus::details::TPCColl_t;
@@ -266,15 +266,15 @@ class icarus::ICARUSWireReadoutGeom: public geo::WireReadoutGeom {
   using Parameters = fhicl::Table<Config>;
 
   /// Constructor: taked a configuration object.
-  ICARUSWireReadoutGeom(Config const& config,
+  WireReadoutGeomICARUS(Config const& config,
                         geo::GeometryCore const* geom,
                         std::unique_ptr<geo::WireReadoutSorter> sorter);
   
   /// Constructor: takes a FHiCL table object.
-  ICARUSWireReadoutGeom(Parameters const& config,
+  WireReadoutGeomICARUS(Parameters const& config,
                         geo::GeometryCore const* geom,
                         std::unique_ptr<geo::WireReadoutSorter> sorter)
-    : ICARUSWireReadoutGeom(config(), geom, std::move(sorter)) {}
+    : WireReadoutGeomICARUS(config(), geom, std::move(sorter)) {}
   
   
   // --- BEGIN -- Channel mapping ----------------------------------------------
@@ -760,7 +760,7 @@ class icarus::ICARUSWireReadoutGeom: public geo::WireReadoutGeom {
   
 
   
-}; // class icarus::ICARUSWireReadoutGeom
+}; // class icarus::WireReadoutGeomICARUS
 
 
-#endif // ICARUSCODE_GEOMETRY_ICARUSWIREREADOUTGEOM_H
+#endif // ICARUSALG_GEOMETRY_WIREREADOUTGEOMICARUS_H

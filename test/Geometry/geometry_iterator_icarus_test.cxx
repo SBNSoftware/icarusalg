@@ -13,7 +13,7 @@
 #define BOOST_TEST_MODULE GeometryIteratorTestICARUS
 
 // ICARUS libraries
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 #include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
 #include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 #include "test/Geometry/ChannelMapConfig.h"
@@ -51,7 +51,7 @@ struct IcarusGeometryIteratorTestFixture:
   testing::GeometryTesterEnvironment<IcarusGeometryConfiguration, icarus::GeoObjectSorterPMTasTPC>
 {
   std::unique_ptr<geo::WireReadoutGeom> WireReadout{
-    std::make_unique<icarus::ICARUSWireReadoutGeom>(
+    std::make_unique<icarus::WireReadoutGeomICARUS>(
        wireReadoutConfig(*this),
        Geometry(),
        std::make_unique<geo::WireReadoutSorterICARUS>())};
