@@ -22,7 +22,7 @@
 
 // ICARUS libraries
 #include "icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h"
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 
 // LArSoft and framework libraries
 #include "larcorealg/Geometry/GeometryCore.h"
@@ -165,7 +165,7 @@ icarus::geo::LoadStandardICARUSgeometry [[nodiscard]]
   
   
   // 4. return the geometry object
-  return SetupICARUSGeometry<icarus::ICARUSWireReadoutGeom>(geomConfig);
+  return SetupICARUSGeometry<icarus::WireReadoutGeomICARUS>(geomConfig);
   
 } // icarus::geo::LoadStandardICARUSgeometry()
 

@@ -14,7 +14,7 @@
 
 // ICARUS libraries
 #include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 #include "icarusalg/Geometry/WireReadoutSorterICARUS.h"
 #include "test/Geometry/geometry_unit_test_icarus.h"
 #include "test/Geometry/ChannelMapConfig.h"
@@ -102,7 +102,7 @@ int main(int argc, char const** argv) {
   IcarusGeometryTestEnvironment TestEnvironment(config);
   using namespace lar::standalone;
   auto const wireReadoutAlg =
-    SetupReadout<geo::WireReadoutSorterICARUS, icarus::ICARUSWireReadoutGeom>(wireReadoutConfig(TestEnvironment),
+    SetupReadout<geo::WireReadoutSorterICARUS, icarus::WireReadoutGeomICARUS>(wireReadoutConfig(TestEnvironment),
                                                                               TestEnvironment.Geometry());
   auto const auxDetGeom = SetupAuxDetGeometry(TestEnvironment.ServiceParameters("AuxDetGeometry"));
   

@@ -17,7 +17,7 @@
 
 // LArSoft libraries
 #include "larcorealg/TestUtils/geometry_unit_test_base.h"
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
 
 // C/C++ standard libraries
 #include <string>
@@ -38,7 +38,7 @@ namespace icarus {
      * that can store an instance of it and extract configuration information
      * from it.
      * 
-     * This class should be used with `icarus::ICARUSWireReadoutGeom`.
+     * This class should be used with `icarus::WireReadoutGeomICARUS`.
      * 
      * We reuse BasicGeometryEnvironmentConfiguration as base class and then we
      * fix its setup.

@@ -16,6 +16,9 @@
 #include "Binner.h"
 
 // SBN code
+#include "icarusalg/Geometry/ICARUSstandaloneGeometrySetup.h"
+#include "icarusalg/Geometry/WireReadoutGeomICARUS.h"
+#include "icarusalg/Geometry/GeoObjectSorterPMTasTPC.h"
 #include "icarusalg/Utilities/ROOTutils.h" // util::ROOT::TDirectoryChanger
 #include "icarusalg/gallery/helpers/C++/expandInputFiles.h"
 
@@ -38,11 +41,11 @@
 #include "lardataalg/DetectorInfo/LArPropertiesStandardTestHelpers.h"
 #include "lardataalg/DetectorInfo/LArPropertiesStandard.h"
 // - Geometry
-#include "icarusalg/Geometry/ICARUSWireReadoutGeom.h"
 #include "larcorealg/Geometry/StandaloneGeometrySetup.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 
 // - configuration
+#include "larcorealg/Geometry/WireReadoutSorterStandard.h"
 #include "larcorealg/Geometry/StandaloneBasicSetup.h"
 // - utilities
 #include "lardataalg/DetectorInfo/DetectorTimings.h"
@@ -862,9 +865,15 @@ int makePlots
   // (and make sure the corresponding headers are also uncommented)
   //
   // geometry setup (it's special)
-  auto geom = lar::standalone::SetupGeometry<icarus::ICARUSWireReadoutGeom>
+  auto geom = lar::standalone::SetupGeometry<icarus::GeoObjectSorterPMTasTPC>
     (config.get<fhicl::ParameterSet>("services.Geometry"));
-
+    
+  // wire readout (it's even more special)
+  auto wireReadout = lar::standalone::SetupReadout
+    <geo::WireReadoutSorterStandard, icarus::WireReadoutGeomICARUS>
+    (config.get<fhicl::ParameterSet>("services.WireReadout"), geom.get())
+    ;
+  
   // LArProperties setup
   auto larProp = testing::setupProvider<detinfo::LArPropertiesStandard>
     (config.get<fhicl::ParameterSet>("services.LArPropertiesService"));
@@ -876,7 +885,7 @@ int makePlots
   // DetectorProperties setup
   auto detProps = testing::setupProvider<detinfo::DetectorPropertiesStandard>(
     config.get<fhicl::ParameterSet>("services.DetectorPropertiesService"),
-    detinfo::DetectorPropertiesStandard::providers_type{geom.get(),larProp.get()}
+    detinfo::DetectorPropertiesStandard::providers_type{geom.get(),wireReadout.get(), larProp.get()}
 //     { geom.get(), larProp.get() } // FIXME try this simpler version
     );
 

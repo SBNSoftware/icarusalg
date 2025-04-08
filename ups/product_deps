@@ -250,9 +250,8 @@ gdmldir	product_dir	gdml
 ####################################
 product		version		qual	flags		<table_format=2>
 guideline_sl	v4_0_0		-
-larsoftobj	v10_00_05	-
-sbnobj  	v10_00_07	-
-cetmodules	v3_24_01	-	only_for_build
+sbnalg  	    v10_04_07	-
+cetmodules	  v3_24_01	-	only_for_build
 end_product_list
 ####################################
 
@@ -307,15 +306,15 @@ end_product_list
 #   case it is optional.
 #
 ####################################
-qualifier	larsoftobj	sbnobj	guideline_sl	notes
-c14:debug	c14:debug	c14:debug	-nq-
-c14:prof	c14:prof	c14:prof	-nq-
-c7:debug	c7:debug	c7:debug	-nq-
-c7:prof		c7:prof		c7:prof		-nq-
-e26:debug	e26:debug	e26:debug	-nq-
-e26:prof	e26:prof	e26:prof	-nq-
-e20:debug	e20:debug	e20:debug	-nq-
-e20:prof	e20:prof	e20:prof	-nq-
+qualifier  sbnalg     guideline_sl  notes
+c14:debug  c14:debug  -nq-
+c14:prof   c14:prof   -nq-
+c7:debug   c7:debug   -nq-
+c7:prof    c7:prof    -nq-
+e26:debug  e26:debug  -nq-
+e26:prof   e26:prof   -nq-
+e20:debug  e20:debug  -nq-
+e20:prof   e20:prof   -nq-
 end_qualifier_list
 ####################################
 
