@@ -13,7 +13,7 @@
 // C/C++ standard library
 #include <array>
 #include <type_traits> // std::is_integral_v, std::is_signed_v
-#include <cmath> // std::sqrt()
+#include <cmath> // std::sqrt(), std::copysign(), std::abs()
 #include <cstddef> // std::size_t
 
 
@@ -103,16 +103,20 @@ class util::FastAndPoorGauss {
   
   //@{
   /// Returns the Gaussian distributed value corresponding to `u`.
-  Data_t transform(Data_t const u) const { return fSamples[indexOf(u)]; }
+  static Data_t transform(Data_t u)
+    { u -= 0.5; return std::copysign(fSamples[indexOf(std::abs(2*u))], u); }
   Data_t operator() (Data_t const u) const { return transform(u); }
   //@}
+  
+  /// Returns the set of precomputed points.
+  static std::array<Data_t, N> const& samples() { return fSamples; }
   
     private:
   /// Sampled points of inverse Gaussian.
   static std::array<Data_t, N> const fSamples;
   
   /// Returns the index of the precomputed table serving the value `u`.
-  std::size_t indexOf(Data_t u) const;
+  static std::size_t indexOf(Data_t u);
   
   /// Fills the pre-sampling table.
   static std::array<Data_t, NPoints> makeSamples();
@@ -231,7 +235,7 @@ std::array<T, N> const util::FastAndPoorGauss<N, T>::fSamples
 
 // -----------------------------------------------------------------------------
 template <std::size_t N, typename T>
-std::size_t util::FastAndPoorGauss<N, T>::indexOf(Data_t u) const {
+std::size_t util::FastAndPoorGauss<N, T>::indexOf(Data_t u) {
   return static_cast<std::size_t>(u * NPoints);
 } // util::FastAndPoorGauss<>::indexOf()
 
@@ -248,7 +252,7 @@ auto util::FastAndPoorGauss<N, T>::makeSamples() -> std::array<Data_t, NPoints>
   util::UniformSequence<Data_t> extract { NPoints };
   
   for(Data_t& value: samples)
-    value = static_cast<Data_t>(TMath::ErfInverse(extract() * 2.0 - 1.0) * V2);
+    value = static_cast<Data_t>(TMath::ErfInverse(extract()) * V2);
   
   return samples;
 } // util::FastAndPoorGauss<>::makeSamples()
