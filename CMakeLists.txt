@@ -37,7 +37,7 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 cet_report_compiler_flags(REPORT_THRESHOLD VERBOSE)
 
 # these are minimum required versions, not the actual product versions
-find_package( sbnobj        REQUIRED EXPORT )
+#find_package( sbnobj        REQUIRED EXPORT )
 find_package( larcorealg    REQUIRED EXPORT )
 find_package( larcoreobj    REQUIRED EXPORT )
 find_package( lardataalg    REQUIRED EXPORT )
