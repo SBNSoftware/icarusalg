@@ -51,7 +51,7 @@ class icarus::ns::util::mfLoggingClass {
   mfLoggingClass(std::string const& logCategory): fLogCategory(logCategory) {}
   
   /// Returns the logging category string for this object.
-  std::string logCategory() const { return fLogCategory; }
+  std::string const& logCategory() const { return fLogCategory; }
   
   /// Returns this object (as a logging class object).
   mfLoggingClass const& loggingClass() const { return *this; }
