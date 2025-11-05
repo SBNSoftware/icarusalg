@@ -58,9 +58,11 @@ template <typename Time>
 struct icarus::ns::util::TimeInterval {
   
   using Time_t = Time; ///< Type of time used.
+  using TimeInterval_t = TimeInterval<Time_t>; ///< This type.
   
   /// Type of time difference.
   using TimeDiff_t = decltype(std::declval<Time_t>() - std::declval<Time_t>());
+  
   
   Time_t start;         ///< Start time of the interval (included).
   Time_t stop{ start }; ///< End time of the interval (excluded).
@@ -111,6 +113,25 @@ struct icarus::ns::util::TimeInterval {
   constexpr bool contains(Time_t t) const noexcept
     { return (t >= start) && (t < stop); }
   
+  /// Returns whether the specified `interval` is fully contained in this one.
+  constexpr bool contains(TimeInterval_t interval) const noexcept;
+  
+  /// Returns whether `t` is between `start` and `stop` (both included).
+  constexpr bool touches(Time_t t) const noexcept
+    { return (t >= start) && (t <= stop); }
+  
+  /// Returns whether this interval has stopped before the `other` one starts.
+  constexpr bool before(TimeInterval_t const& other) const noexcept
+    { return stop <= other.start; }
+  
+  /// Returns whether this interval start after the `other` one has stopped.
+  constexpr bool after(TimeInterval_t const& other) const noexcept
+    { return start >= other.stop; }
+  
+  /// Returns whether this interval overlaps the `other` one.
+  constexpr bool overlaps(TimeInterval_t const& other) const noexcept
+    { return !before(other) && !after(other); }
+  
   /// @}
   // --- END ---- Operations ---------------------------------------------------
   
@@ -158,11 +179,54 @@ struct icarus::ns::util::TimeInterval {
   /// @}
   // --- END ---- Modifiers ----------------------------------------------------
   
+  
+  // --- BEGIN -- Comparisons and sorting --------------------------------------
+  /// @name Comparisons and sorting
+  /// @{
+  
+  /// Returns whether this and the `other` interval have the same value.
+  constexpr bool operator== (TimeInterval_t const& other) const noexcept
+    { return (start == other.start) && (stop == other.stop); }
+  
+  /// Returns whether this and the `other` interval have different value.
+  constexpr bool operator!= (TimeInterval_t const& other) const noexcept
+    { return (start != other.start) || (stop != other.stop); }
+  
+  /// Returns whether this interval starts before the `other` one starts.
+  constexpr bool operator< (TimeInterval_t const& other) const noexcept
+    { return start < other.start; }
+  
+  /// Returns whether this interval starts after the `other` one starts.
+  constexpr bool operator> (TimeInterval_t const& other) const noexcept
+    { return start > other.start; }
+  
+  /// Returns whether this interval starts no later than the `other` one starts.
+  constexpr bool operator<= (TimeInterval_t const& other) const noexcept
+    { return start <= other.start; }
+    
+  /// Returns whether this interval starts no earlier than the `other` one.
+  constexpr bool operator>= (TimeInterval_t const& other) const noexcept
+    { return start >= other.start; }
+  
+  ///@}
+  // --- END ---- Comparisons and sorting --------------------------------------
+  
 }; // icarus::ns::util::TimeInterval
 
 
 //--------------------------------------------------------------------------
 //---  Template implementation
+//--------------------------------------------------------------------------
+/// Returns whether the specified `interval` is fully contained in this one.
+template <typename Time>
+inline constexpr bool icarus::ns::util::TimeInterval<Time>::contains
+  (TimeInterval_t interval) const noexcept
+{
+  return interval.empty()
+    || (!empty() && (interval.start >= start) && (interval.stop <= stop));
+}
+
+
 //--------------------------------------------------------------------------
 template <typename TimeI, typename TimeS>
 constexpr auto icarus::ns::util::operator+
