@@ -212,6 +212,14 @@ class icarus::IntegerRanges: public icarus::details::IntegerRangesBase<T> {
 }; // class icarus::IntegerRanges<>
 
 
+namespace icarus {
+  // deduction guide: construct a range with the same type as the iterator value
+  template <typename BIter, typename EIter>
+  IntegerRanges(BIter b, EIter e)
+    -> IntegerRanges<typename std::iterator_traits<BIter>::value_type>;
+}
+
+
 // -----------------------------------------------------------------------------
 /// Returns a `IntegerRanges` object from the elements in `coll`.
 template <bool CheckGrowing, typename Coll>
