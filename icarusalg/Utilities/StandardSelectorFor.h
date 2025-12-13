@@ -12,7 +12,6 @@
 
 
 /// LArSoft libraries
-#include <limits> // FIXME workaround until lardataalg PR #48 (https://github.com/LArSoft/lardataalg/pull/48) is adopted
 #include "lardataalg/Utilities/MultipleChoiceSelection.h"
 
 /// framework libraries
