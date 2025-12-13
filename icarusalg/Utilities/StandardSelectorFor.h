@@ -141,7 +141,7 @@ namespace util {
    * example, some excluding part of the available enumerator values).
    * The "standard" `Tag` value `0` is supposed to be... well, "standard".
    */
-  template <typename EnumClass, std::size_t Tag = 0>
+  template <typename EnumClass, std::size_t Tag = 0, typename = void>
   struct StandardSelectorFor { static constexpr bool isEnumSupported = false; };
   
   template <typename EnumClass, std::size_t Tag = 0, typename Enable = void>
@@ -192,7 +192,16 @@ namespace util {
 namespace fhicl {
   
   // ---------------------------------------------------------------------------
-  /*
+  /**
+   * @brief Hacky replacement for `fhicl::Atom` for enumerator data types.
+   * 
+   * This is the base class of `fhicl::SelectorAtom`, which is the one users are
+   * expected to interact with and allows specialization. This one instead is
+   * kind of fixes and provides a reference/base implementation.
+   * 
+   * This implementation uses the functionality of `StandardSelectorFor<T, Tag>`
+   * for its operations.
+   * 
    * Because `fhiclcpp` classes are declared `final`, we can't customize them
    * by inheritance; overloading `encode()`/`decode()` helps but does not do
    * the full work (in particular the default value management is not covered).
@@ -203,8 +212,8 @@ namespace fhicl {
    * So I end up specializing a class and inheriting from implementation details
    * which may change at any time.
    */
-  template <typename T>
-  class SelectorAtom
+  template <typename T, std::size_t Tag = 0>
+  class StandardSelectorAtom
     : public detail::AtomBase
     , private detail::RegisterIfTableMember
   {
@@ -218,14 +227,14 @@ namespace fhicl {
     //=====================================================
     // User-friendly
     // ... c'tors
-    explicit SelectorAtom(Name&& name);
-    explicit SelectorAtom(Name&& name, Comment&& comment);
-    explicit SelectorAtom(Name&& name, Comment&& comment, std::function<bool()> useIf);
+    explicit StandardSelectorAtom(Name&& name);
+    explicit StandardSelectorAtom(Name&& name, Comment&& comment);
+    explicit StandardSelectorAtom(Name&& name, Comment&& comment, std::function<bool()> useIf);
 
     // ... c'tors supporting defaults
-    explicit SelectorAtom(Name&& name, T const& dflt_value);
-    explicit SelectorAtom(Name&& name, Comment&& comment, T const& dflt_value);
-    explicit SelectorAtom(
+    explicit StandardSelectorAtom(Name&& name, T const& dflt_value);
+    explicit StandardSelectorAtom(Name&& name, Comment&& comment, T const& dflt_value);
+    explicit StandardSelectorAtom(
       Name&& name, Comment&& comment,
       std::function<bool()> useIf, T const& dflt_value
       );
@@ -244,9 +253,9 @@ namespace fhicl {
   private:
     value_type value_{};
 
-    static ::util::StandardSelectorFor<T> const selector;
+    static ::util::StandardSelectorFor<T, Tag> const selector;
     
-    SelectorAtom(
+    StandardSelectorAtom(
       Name&& name, Comment&& comment, par_style const vt,
       std::function<bool()> maybeUse, T dflt_value = T{}
       );
@@ -254,7 +263,29 @@ namespace fhicl {
     std::string get_stringified_value() const override;
     void do_set_value(fhicl::ParameterSet const& pset) override;
     
-  }; // class SelectorAtom
+    /// Custom: returns a `comment` decorated with the available options.
+    Comment make_comment(Comment const& comment) const;
+    
+  }; // class StandardSelectorAtom
+  
+  
+  
+  /**
+   * @brief Hacky replacement for `fhicl::Atom` for enumerator data types.
+   * @tparam T type of the datum in the `Atom`
+   * @tparam Tag additional parameter to differentiate between implementations
+   * @tparam Goldstone degree of freedom giving mass to `enable_if` specializations
+   * @see StandardSelectorAtom
+   * 
+   * This is the entry point for a `fhicl::Atom` specialized in enumerators.
+   * Users can define specializations and base them on the reference
+   * implementation `StandardSelectorAtom`.
+   */
+  template <typename T, std::size_t Tag = 0, typename Goldstone = void>
+  class SelectorAtom: public StandardSelectorAtom<T, Tag> {
+    using StandardSelectorAtom<T, Tag>::StandardSelectorAtom;
+  };
+  
   
 } // fhicl
 
@@ -291,7 +322,7 @@ template <typename EnumClass, std::size_t Tag>
 struct util::hasStandardSelector_t<EnumClass, Tag,
   std::enable_if_t<
     !std::is_enum_v<EnumClass> || std::is_convertible_v<EnumClass, int>
-    || !util::StandardSelectorFor<EnumClass>::isEnumSupported
+    || !util::StandardSelectorFor<EnumClass, Tag>::isEnumSupported
   >>
   : std::false_type
 {};
@@ -319,67 +350,67 @@ util::details::decodeEnumClassToFHiCL(std::any const& src, EnumClass& value) {
 
 
 // -----------------------------------------------------------------------------
-// ---  fhicl::SelectorAtom<>
+// ---  fhicl::StandardSelectorAtom<>
 // -----------------------------------------------------------------------------
-template <typename T>
-util::StandardSelectorFor<T> const fhicl::SelectorAtom<T>::selector;
+template <typename T, std::size_t Tag>
+util::StandardSelectorFor<T, Tag> const fhicl::StandardSelectorAtom<T, Tag>::selector;
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom(Name&& name, Comment&& comment)
-  : SelectorAtom{
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom(Name&& name, Comment&& comment)
+  : StandardSelectorAtom{
     std::move(name), std::move(comment),
     par_style::REQUIRED, detail::AlwaysUse()
   }
   {}
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom
   (Name&& name, Comment&& comment, std::function<bool()> maybeUse)
-  : SelectorAtom{
+  : StandardSelectorAtom{
     std::move(name), std::move(comment),
     par_style::REQUIRED_CONDITIONAL, maybeUse
   }
   {}
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom
   (Name&& name, Comment&& comment, T const& dflt_value)
-  : SelectorAtom{
+  : StandardSelectorAtom{
     std::move(name), std::move(comment),
     par_style::DEFAULT, detail::AlwaysUse(), dflt_value
   }
   {}
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom(
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom(
   Name&& name, Comment&& comment,
   std::function<bool()> maybeUse, T const& dflt_value
 )
-  : SelectorAtom{
+  : StandardSelectorAtom{
     std::move(name), Comment{ "" },
     par_style::DEFAULT_CONDITIONAL, maybeUse, dflt_value
   }
   {}
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom(Name&& name)
-  : SelectorAtom{ std::move(name), Comment("") }
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom(Name&& name)
+  : StandardSelectorAtom{ std::move(name), Comment("") }
   {}
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom(Name&& name, T const& dflt_value)
-  : SelectorAtom{ std::move(name), Comment(""), dflt_value }
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom(Name&& name, T const& dflt_value)
+  : StandardSelectorAtom{ std::move(name), Comment(""), dflt_value }
   {}
 
 // -----------------------------------------------------------------------------
-template <typename T>
-std::string fhicl::SelectorAtom<T>::get_stringified_value() const {
+template <typename T, std::size_t Tag>
+std::string fhicl::StandardSelectorAtom<T, Tag>::get_stringified_value() const {
   return has_default()
     ? selector.get(value_).name()
     : detail::no_defaults::expected_types<T>{}.value
@@ -387,12 +418,12 @@ std::string fhicl::SelectorAtom<T>::get_stringified_value() const {
 }
 
 // -----------------------------------------------------------------------------
-template <typename T>
-fhicl::SelectorAtom<T>::SelectorAtom(
+template <typename T, std::size_t Tag>
+fhicl::StandardSelectorAtom<T, Tag>::StandardSelectorAtom(
   Name&& name, Comment&& comment, par_style const vt,
   std::function<bool()> maybeUse, T dflt_value /* = T{} */
 )
-  : AtomBase{ std::move(name), std::move(comment), vt, maybeUse }
+  : AtomBase{ std::move(name), make_comment(comment), vt, maybeUse }
   , RegisterIfTableMember{this}
   , value_{ std::move(dflt_value) }
 {
@@ -400,8 +431,8 @@ fhicl::SelectorAtom<T>::SelectorAtom(
 }
 
 // -----------------------------------------------------------------------------
-template <typename T>
-void fhicl::SelectorAtom<T>::do_set_value(fhicl::ParameterSet const& pset)
+template <typename T, std::size_t Tag>
+void fhicl::StandardSelectorAtom<T, Tag>::do_set_value(fhicl::ParameterSet const& pset)
 {
   auto const trimmed_key = detail::strip_first_containing_name(key());
   if (has_default()) {
@@ -411,6 +442,19 @@ void fhicl::SelectorAtom<T>::do_set_value(fhicl::ParameterSet const& pset)
   else
     value_ = pset.get<T>(trimmed_key);
 }
+
+
+// -----------------------------------------------------------------------------
+template <typename T, std::size_t Tag>
+fhicl::Comment fhicl::StandardSelectorAtom<T, Tag>::make_comment
+  (Comment const& comment) const
+{
+  std::string const optionList = selector.optionListString();
+  return Comment{ comment.value.empty()
+    ? "Choices: " + optionList + "."
+    : comment.value + " (choices: " + optionList + ")"
+    };
+} // fhicl::StandardSelectorAtom<T, Tag>::make_comment()
 
 
 // -----------------------------------------------------------------------------
