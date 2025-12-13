@@ -3,6 +3,7 @@ file(GLOB src_files *.cxx)
 cet_make_library(
   SOURCE ${src_files}
   LIBRARIES
+    sbnobj::Common_Trigger   # BeamBits.h
     lardataalg::DetectorInfo
     lardataalg::headers
     larcorealg::CoreUtils
