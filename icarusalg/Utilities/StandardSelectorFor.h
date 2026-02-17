@@ -245,6 +245,10 @@ namespace fhicl {
       return value_;
     }
 
+    /// Interface extensions: returns the string name of the current value.
+    std::string valueName() const
+      { return optionName((*this)()); }
+    
     // Expert-only
     using default_type = T;
     using value_type = T;
@@ -252,6 +256,10 @@ namespace fhicl {
     /// Interface extensions: returns a selector associated to `T`.
     static ::util::StandardSelectorFor<T, Tag> const& selector()
       { return selector_; }
+    
+    /// Interface extensions: returns the string name of the specified value.
+    static std::string optionName(T value)
+      { return selector().get(value).name(); }
     
   private:
     value_type value_{};
