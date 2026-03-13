@@ -92,7 +92,9 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
     `configPath` is included directly, and it is assumed that it already
     properly defines a `services` table.
     """
-    return DefaultConfigPath, DefaultServiceTable
+    return LArSoftUtils.ServiceManagerInstance.ConfigurationInfo(
+      configPath=self.DefaultConfigPath, serviceTable=self.DefaultServiceTable,
+      )
   # defaultConfiguration()
 
   def __init__(self):
