@@ -59,6 +59,67 @@ icarus_detectorclocks_data_notiming: {
     
 } # icarus_detectorclocks_data_notiming
 
+
+# ##############################################################################
+#
+# Simulation settings
+#
+# Executive summary: use this configuration for simulation
+#                    (shifted or not, with data overlay or not).
+#
+# These settings have dual (and a half) use.
+# The explicit use is for simulation samples that underwent a time shift
+# (e.g. via `AdjustSimForTrigger`) and have a new time reference in `shifted`
+# data product. The implicit usage is for simulation samples that have not been
+# shifted, yet or at all. The half is that an overlay workflow follows for the
+# most part (only exception the data decoding) the simulation time reference.
+# 
+# The standard time reference (`icarus_detectorclocks`) is from `daqTrigger`,
+# which is normally decoded from data and never available in simulation.
+# In absence of the configured trigger data product, timing configuration
+# silently falls back to default values from the configuration, which are
+# in fact suitable for standard simulation jobs.
+# 
+# This configuration table replaces the non-existing `daqTrigger` data product,
+# which exists only when decoding data, with the non-existing `shifted`
+# data product, which exists only after `AdjustSimForTrigger` is executed
+# (with the standard module name).
+# 
+# In normal Monte Carlo jobs, this change is indifferent since DetectorClocks
+# will always fall back to the configured default values.
+# 
+# In case of shifted simulation jobs, this configuration does the right thing,
+# picking the now available `shifted` data product as the time reference
+# (and unfortunately it still silently falls back to configured defaults if
+# for any reason that product is not available).
+# 
+# Finally, in case of simulation overlaid on data ("overlay"), the data itself
+# is supposed to be "time-invariant" (off-beam, minimum bias), and the time
+# reference is taken from the simulation, again from the defaults or from the
+# `shifted` data product, depending on whether simulation is being shifted.
+# It is to be noted that, in an overlay workflow the default time reference of
+# the standard configuration, `daqTrigger` is sooner or later decoded, and its
+# availability depends on the relative order of simulation and decoding. At that
+# point, time reference will switch from default values (wrong if simulation was
+# shifted) to the minimum bias trigger time (wrong, always).
+# 
+# Note that `TrigModuleName` configuration parameter is not covered by
+# `InheritClockConfig`, so overriding that in a job with inheriting enabled
+# does use the overridden trigger and does not cause errors.
+#
+# Use as:
+#     
+#     services.DetectorClocksService: @local::icarus_detectorclocks_simulation
+#     
+#
+icarus_detectorclocks_simulation: {
+    @table::icarus_detectorclocks
+
+    TrigModuleName: "shifted"
+
+} # icarus_detectorclocks_simulation
+
+
 #
 #
 #
