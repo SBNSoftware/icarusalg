@@ -54,8 +54,7 @@ void TimeIntervalTable_doc2_test() {
    *   using Parameters = fhicl::Table<Config>;
    *   
    *   MyAlgorithm(Parameters const& params)
-   *     : fInterval
-   *       { icarus::ns::fhicl::makeTimeInterval(params().Interval()) }
+   *     : fInterval{ params().Interval() }
    *     {
    *       mf::LogInfo{ "MyAlgorithm" } << "Time interval: " << fInterval;
    *     }
@@ -94,8 +93,7 @@ void TimeIntervalTable_doc2_test() {
     using Parameters = fhicl::Table<Config>;
     
     MyAlgorithm(Parameters const& params)
-      : fInterval
-        { icarus::ns::fhicl::makeTimeInterval(params().Interval()) }
+      : fInterval{ params().Interval() }
       {
         mf::LogInfo{ "MyAlgorithm" } << "Time interval: " << fInterval;
       }
@@ -153,11 +151,7 @@ void TimeIntervalOptionalTable_doc2_test() {
    *   using Parameters = fhicl::Table<Config>;
    *   
    *   MyAlgorithm(Parameters const& params)
-   *     : fInterval
-   *       {
-   *         icarus::ns::fhicl::makeTimeInterval(params().Interval())
-   *           .value_or(DefaultInterval)
-   *       }
+   *     : fInterval{ params().Interval().value_or(DefaultInterval) }
    *     {
    *       mf::LogInfo{ "MyAlgorithm" } << "Time interval: " << fInterval;
    *     }
@@ -214,11 +208,7 @@ void TimeIntervalOptionalTable_doc2_test() {
     using Parameters = fhicl::Table<Config>;
     
     MyAlgorithm(Parameters const& params)
-      : fInterval
-        {
-          icarus::ns::fhicl::makeTimeInterval(params().Interval())
-            .value_or(DefaultInterval)
-        }
+      : fInterval{ params().Interval().value_or(DefaultInterval) }
       {
          mf::LogInfo{ "MyAlgorithm" }
            << "Time interval: " << fInterval;
