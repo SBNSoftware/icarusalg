@@ -445,6 +445,7 @@ template <typename Event>
 void AssociatedBaseline::fromCollection
   (Event const& event, art::InputTag const& tag)
 {
+  fBaselines.clear();
   auto const& baselines
     = event.template getProduct<std::vector<icarus::WaveformBaseline>>(tag);
   fBaselines.reserve(baselines.size());
@@ -456,6 +457,7 @@ template <typename Event>
 void AssociatedBaseline::fromAssociations
   (Event const& event, art::InputTag const& tag)
 {
+  fBaselines.clear();
   auto const& assns
     = event.template getProduct<art::Assns<raw::OpDetWaveform, icarus::WaveformBaseline>>
     (tag);

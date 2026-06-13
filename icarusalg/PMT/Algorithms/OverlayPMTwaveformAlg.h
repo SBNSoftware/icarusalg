@@ -24,6 +24,7 @@
 // C/C++ standard libraries
 #include <cstddef>
 #include <cstdint> // std::size_t, std::ptrdiff_t
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -340,9 +341,10 @@ void sbn::opdet::OverlayPMTwaveformAlg::dumpConfiguration
 
   if (fBaselineCheckParams.enabled()) {
     out << "\n" << indent << " - checking that";
-    if (fBaselineCheckParams.tolerance <= 0) out << " all";
+    if (fBaselineCheckParams.tolerance <= 0.0f) out << " all";
     else {
-      out << " at least " << (fBaselineCheckParams.tolerance * 100) << "% of";
+      out << " at least "
+        << ((1.0f - fBaselineCheckParams.tolerance) * 100.0f) << "% of";
     }
     out << " the waveforms in an event start with at least "
       << (fBaselineCheckParams.ticks * fOpticalTick)
