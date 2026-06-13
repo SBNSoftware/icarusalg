@@ -119,7 +119,7 @@ namespace sbn {
   /// Helper for generic encoding of `sbn::BeamType` enumerator in FHiCL.
   ::fhicl::detail::ps_atom_t encode(BeamType const& value);
 
-  /// Helper for generic deecoding of `sbn::BeamType` enumerator in FHiCL.
+  /// Helper for generic decoding of `sbn::BeamType` enumerator in FHiCL.
   void decode(std::any const& src, BeamType& value);
   
 } // namespace sbn

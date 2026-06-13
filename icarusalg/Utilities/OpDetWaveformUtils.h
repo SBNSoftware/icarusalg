@@ -2,8 +2,8 @@
  * @file   icarusalg/Utilities/OpDetWaveformUtils.h
  * @brief  Simple utilities for `raw::OpDetWaveform` objects.
  * @author Gianluca Petrillo (petrillo@slac.stanford.edu)
- * @date   March 19, 2026, 2026
- * 
+ * @date   March 19, 2026
+ *
  * This library is currently header only.
  */
 
@@ -53,7 +53,7 @@ struct raw::OrderOpDetWaveformByChannelAndTime {
     (raw::OpDetWaveform const& A, raw::OpDetWaveform const& B) const noexcept
     { return cmp(A, B); }
   
-}; // raw::OrderWaveformByChannelAndTime
+}; // raw::OrderOpDetWaveformByChannelAndTime
 
 
 // -----------------------------------------------------------------------------

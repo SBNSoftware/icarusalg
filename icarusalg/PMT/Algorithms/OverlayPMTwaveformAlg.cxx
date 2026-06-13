@@ -13,10 +13,12 @@
 
 // C/C++ standard libraries
 #include <algorithm> // std::lower_bound(), std::sort(), std::clamp()
+#include <cassert>
 #include <cmath> // std::llround()
+#include <limits>
 #include <string>
-#include <vector>
 #include <type_traits> // std::is_signed_v
+#include <vector>
 
 
 //------------------------------------------------------------------------------
@@ -314,6 +316,7 @@ void sbn::opdet::OverlayPMTwaveformAlg::checkNoiselessBaseline
   (std::vector<InputWaveform_t> const& sim) const
 {
   if (!fBaselineCheckParams.enabled()) return;
+  if (sim.empty()) return;
   
   std::vector<std::string> failures;
   for (auto const [ waveform, baseline ]: sim) {
@@ -324,14 +327,12 @@ void sbn::opdet::OverlayPMTwaveformAlg::checkNoiselessBaseline
     if (!errorMsg.empty()) failures.emplace_back(std::move(errorMsg));
   } // for all waveforms
   
-  if (failures.size()
-    >= static_cast<std::size_t>(sim.size() * fBaselineCheckParams.tolerance)
-  ) {
+  if (failures.size() > sim.size() * fBaselineCheckParams.tolerance) {
     cet::exception e{ "OverlayPMTwaveformAlg" };
     e << "OverlayPMTwaveformAlg: " << failures.size() << "/" << sim.size()
-      <<" waveforms do not start with a constant baseline";
-    auto const nPrinted = std::min<std::size_t>(sim.size(), 10);
-    if (nPrinted != sim.size()) e << "; first " << nPrinted;
+      << " waveforms do not start with a constant baseline";
+    auto const nPrinted = std::min<std::size_t>(failures.size(), 10U);
+    if (nPrinted != failures.size()) e << "; first " << nPrinted;
     e << ":";
     for (std::size_t i = 0; i < nPrinted; ++i) e << "\n  " << failures[i];
     e << "\n";
