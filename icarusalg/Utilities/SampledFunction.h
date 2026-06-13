@@ -79,7 +79,7 @@ namespace util {
  * for (auto it = subsample.begin(); it != subsample.end(); ++it)
  *   // ...
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * or, if applicable, let the range-for loop di that for us:
+ * or, if applicable, let the range-for loop do that for us:
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
  * for (auto value: sf.subsample(0))
  *   // ...
