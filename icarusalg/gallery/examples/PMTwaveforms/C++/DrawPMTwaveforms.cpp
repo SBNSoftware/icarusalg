@@ -375,10 +375,13 @@ auto BaselineEstimatorFromWaveformStart::estimate
     = &BaselineInfo_t::RangeStats_t::average;
   
   std::vector<double> const data { waveform.begin(), waveform.end() };
+
+  std::size_t nSamples = std::min(fConfig.nSamples, data.size());
+  assert(nSamples > 0);
   
   auto const start = data.begin();
-  auto const middle = start + fConfig.nSamples / 2;
-  auto const stop = middle + fConfig.nSamples / 2; // make it even
+  auto const middle = start + nSamples / 2;
+  auto const stop = middle + nSamples / 2; // make it even
   
   info.regionA = extractBaselineStatistics(start, middle);
   info.regionA.baseline = info.regionA.*baseline;

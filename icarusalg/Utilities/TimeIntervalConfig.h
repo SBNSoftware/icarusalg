@@ -123,7 +123,7 @@ namespace icarus::ns::fhicl {
    *   using Parameters = fhicl::Table<Config>;
    *   
    *   MyAlgorithm(Parameters const& params)
-   *     : fInterval{ params().Interval()) }
+   *     : fInterval{ params().Interval() }
    *     {
    *       mf::LogInfo{ "MyAlgorithm" } << "Time interval: " << fInterval;
    *     }
