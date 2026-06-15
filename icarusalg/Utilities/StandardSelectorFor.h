@@ -12,7 +12,6 @@
 
 
 /// LArSoft libraries
-#include <limits> // FIXME workaround until lardataalg PR #48 (https://github.com/LArSoft/lardataalg/pull/48) is adopted
 #include "lardataalg/Utilities/MultipleChoiceSelection.h"
 
 /// framework libraries
@@ -75,7 +74,7 @@ namespace util {
    * }
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    * The two helpers here utilize indirectly objects of type
-   * `util::MultipleChoiceSelection<EnumClass>` to implement.
+   * `util::MultipleChoiceSelection<EnumClass>` in implementation.
    * These objects require the names of the enumerator values at initialization
    * time, so they can't be written in generic code.
    * The helpers above rely on an object of type `util::StandardSelectorFor`
