@@ -61,6 +61,20 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
   DefaultConfigPath = "services_basic_icarus.fcl"
   DefaultServiceTable = "icarus_basic_services"
 
+  ICARUSextraServices = {
+
+    # NOTE: this requires LArSoft dependencies (`larevt`, `icaruscode`)
+    # and a more advanced configuration (e.g. `services_common_icarus.fcl`)
+    'ChannelStatusService': LArSoftUtils.SimpleServiceLoader(
+      "lariov::SIOVChannelStatusProvider",
+      configKey=".ChannelStatusProvider",
+      interfaceClass="lariov::ChannelStatusProvider",
+      headers = "larevt/CalibrationDBI/Providers/SIOVChannelStatusProvider.h",
+      libraries = "larevt_CalibrationDBI_Providers",
+      ),
+
+  } # ICARUSextraServices
+
   def defaultConfiguration(self):
     """
 
@@ -78,7 +92,9 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
     `configPath` is included directly, and it is assumed that it already
     properly defines a `services` table.
     """
-    return DefaultConfigPath, DefaultServiceTable
+    return LArSoftUtils.ServiceManagerInstance.ConfigurationInfo(
+      configPath=self.DefaultConfigPath, serviceTable=self.DefaultServiceTable,
+      )
   # defaultConfiguration()
 
   def __init__(self):
@@ -89,6 +105,16 @@ class ICARUSserviceManagerClass(LArSoftUtils.ServiceManagerInstance):
       )
   # __init__()
 
+  def serviceLoaderTable(self):
+    """Returns the table with the services with known loaders.
+    
+    This overrides the base class function (but it invokes it first anyway).
+    """
+    serviceLoaderTable = super().serviceLoaderTable()
+    serviceLoaderTable.update(self.ICARUSextraServices)
+    return serviceLoaderTable
+  # serviceLoaderTable()
+  
   def setup(self):
     """Prepares for ICARUS service provider access in python/Gallery."""
 
