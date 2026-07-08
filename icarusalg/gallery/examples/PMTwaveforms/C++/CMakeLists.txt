@@ -59,6 +59,7 @@ find_package(lardataalg      REQUIRED)
 find_package(lardataobj      REQUIRED)
 find_package(sbnobj          REQUIRED)
 find_package(messagefacility  REQUIRED)
+find_package(Boost 1.65      REQUIRED COMPONENTS program_options)
 find_package(ROOT
   COMPONENTS Gpad Graf Hist Tree RIO
   REQUIRED
@@ -74,6 +75,7 @@ target_link_libraries(DrawPMTwaveforms
   gallery::gallery
   icarusalg::gallery_helpers
   icarusalg::Utilities
+  sbnobj::ICARUS_PMT_Data
   lardataalg::headers
   lardataobj::RawData
   messagefacility::MF_MessageLogger
@@ -81,6 +83,7 @@ target_link_libraries(DrawPMTwaveforms
   ROOT::Graf
   ROOT::Hist
   ROOT::RIO
+  Boost::program_options
   )
 install(TARGETS DrawPMTwaveforms)
 
