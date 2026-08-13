@@ -17,7 +17,7 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 # cmake_policy(VERSION 3.19)
 
 find_package(cetmodules 3.24.01 REQUIRED)
-project(icarusalg VERSION 10.06.00.12 LANGUAGES CXX)
+project(icarusalg LANGUAGES CXX)
 
 message(STATUS
   "\n-- ============================================================================="
@@ -26,6 +26,7 @@ message(STATUS
 
 
 include(CetCMakeEnv)
+set(${PROJECT_NAME}_CMAKE_PROJECT_VERSION_STRING 10.06.00.14lf01)
 cet_cmake_env()
 
 cet_set_compiler_flags(DIAGS CAUTIOUS
