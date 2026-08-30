@@ -57,10 +57,13 @@ namespace icarus::ns::util {
 template <typename Time>
 struct icarus::ns::util::TimeInterval {
   
+  using TimeInterval_t = TimeInterval<Time>; ///< This type.
+  
   using Time_t = Time; ///< Type of time used.
   
   /// Type of time difference.
   using TimeDiff_t = decltype(std::declval<Time_t>() - std::declval<Time_t>());
+  
   
   Time_t start;         ///< Start time of the interval (included).
   Time_t stop{ start }; ///< End time of the interval (excluded).
@@ -111,6 +114,28 @@ struct icarus::ns::util::TimeInterval {
   constexpr bool contains(Time_t t) const noexcept
     { return (t >= start) && (t < stop); }
   
+  /// Returns whether this interval is earlier than `other` (even adjacent).
+  /// @note Undefined if either interval is empty.
+  template <typename OtherTime>
+  constexpr bool before(TimeInterval<OtherTime> const& other) const noexcept
+    { return stop <= other.start; }
+  
+  /// Returns whether this interval is later than `other` (even adjacent).
+  /// @note Undefined if either interval is empty.
+  template <typename OtherTime>
+  constexpr bool after(TimeInterval<OtherTime> const& other) const noexcept
+    { return other.before(*this); }
+  
+  /// Returns whether this interval overlaps `other` (adjacent one doesn't).
+  template <typename OtherTime>
+  constexpr bool overlaps(TimeInterval<OtherTime> const& other) const noexcept
+    { return !empty() && !other.empty() && !before(other) && !after(other); }
+  
+  /// Returns a copy of this interval intersected with `other`.
+  template <typename OtherTime>
+  constexpr TimeInterval_t intersection(TimeInterval<OtherTime> other) const
+    { return other.intersect(*this); }
+  
   /// @}
   // --- END ---- Operations ---------------------------------------------------
   
@@ -121,12 +146,12 @@ struct icarus::ns::util::TimeInterval {
   
   /// Adds the specified `amount` of time to the interval ends, if not empty.
   template <typename OtherTime>
-  TimeInterval<Time_t>& shift(OtherTime amount)
+  TimeInterval_t& shift(OtherTime amount)
     { if (!empty()) { start += amount; stop += amount; } return *this; }
   
   /// Reduces this interval to its intersection with `other`.
   template <typename OtherTime>
-  TimeInterval<Time_t>& intersect(TimeInterval<OtherTime> const& other)
+  TimeInterval_t& intersect(TimeInterval<OtherTime> const& other)
     {
       if (start < other.start) start = other.start;
       if (stop > other.stop) stop = other.stop;
@@ -135,7 +160,7 @@ struct icarus::ns::util::TimeInterval {
   
   /// Reduces this interval to its extension with `other`.
   template <typename OtherTime>
-  TimeInterval<Time_t>& extend(TimeInterval<OtherTime> const& other)
+  TimeInterval_t& extend(TimeInterval<OtherTime> const& other)
     {
       if (empty()) *this = other;
       else if (!other.empty()) {
@@ -147,12 +172,12 @@ struct icarus::ns::util::TimeInterval {
   
   /// Adds the specified `amount` of time to the interval ends, if not empty.
   template <typename OtherTime>
-  TimeInterval<Time_t>& operator += (OtherTime amount)
+  TimeInterval_t& operator += (OtherTime amount)
     { return shift(amount); }
   
   /// Subtracts a specified `amount` of time to the interval ends, if not empty.
   template <typename OtherTime>
-  TimeInterval<Time_t>& operator -= (OtherTime amount)
+  TimeInterval_t& operator -= (OtherTime amount)
     { return shift(-amount); }
   
   /// @}
