@@ -129,7 +129,7 @@ class icarus::ns::util::mfLoggingClass {
   /// Returns a mf::LogDebug() with information about the calling location.
   mf::LogDebug mfLogDebugLine
     (std::source_location const loc = std::source_location::current()) const
-    { return { logCategory(), loc.file_name(), loc.line_number() }; }
+    { return { logCategory(), loc.file_name(), static_cast<int>(loc.line()) }; }
   
 #endif // __cpp_lib_source_location
   
