@@ -14,6 +14,7 @@
 // SBN code
 #include "icarusalg/Utilities/ROOTutils.h" // util::ROOT::TDirectoryChanger
 #include "icarusalg/gallery/helpers/C++/expandInputFiles.h"
+#include "sbnobj/ICARUS/PMT/Data/WaveformBaseline.h"
 
 // LArSoft
 // - data products
@@ -33,6 +34,8 @@
 // gallery/canvas
 #include "gallery/Event.h"
 #include "canvas/Persistency/Provenance/EventID.h"
+#include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Utilities/InputTag.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/types/OptionalDelegatedParameter.h"
@@ -54,7 +57,8 @@
 #include "TLine.h"
 #include "TROOT.h" // gROOT
 
-// C/C++ standard libraries
+// C/C++/ standard and Boost libraries
+#include <boost/program_options.hpp>
 #include <string>
 #include <numeric> // std::reduce(), std::transform_reduce()
 #include <vector>
@@ -64,6 +68,7 @@
 #include <iostream> // std::cerr, std::endl
 #include <limits>
 #include <type_traits> // std::void_t
+#include <variant>
 #include <cmath> // std::round()
 
 
@@ -200,6 +205,18 @@ class ValueRange {
   bool contains(value_type v) const
     { return (!fLower || (v >= *fLower)) && (!fUpper || (v < *fUpper)); }
   
+  template <typename U>
+  bool before(ValueRange<U> const& other) const
+    { return fUpper && other.fLower && (*fUpper <= *(other.fLower)); }
+  
+  template <typename U>
+  bool after(ValueRange<U> const& other) const
+    { return other.before(*this); }
+  
+  template <typename U>
+  bool overlaps(ValueRange<U> const& other) const
+    { return !before(other) && !after(other); }
+  
     private:
   boundary_type fLower, fUpper;
   
@@ -296,6 +313,228 @@ ValueRange<double> convert(ValueRangeFHiCL<double> const& config)
 // ---  algorithm classes
 // -----------------------------------------------------------------------------
 
+struct BaselineInfo_t {
+  struct RangeStats_t {
+    double baseline; ///< The value chosen as representative of baseline.
+    unsigned int nSamples = 0; ///< Number of samples in the range.
+    double average; ///< Average of samples in the range.
+    double variance; ///< Variance of samples in the range.
+    double median; ///< Median of samples in the range.
+  };
+  
+  static constexpr double NoBaseline = std::numeric_limits<double>::lowest();
+  RangeStats_t estimate; ///< Our best estimate.
+  RangeStats_t regionA; ///< First partial of the most trusted region.
+  RangeStats_t regionB; ///< Second partial of the most trusted region.
+  RangeStats_t regionE; ///< Contol region.
+  double const& baseline = estimate.baseline; ///< Best baseline estimate.
+  double baselineAverage; ///< Average baseline of trusted and control region.
+  double RMS; ///< Baseline RMS.
+}; // BaselineInfo_t
+
+
+// -----------------------------------------------------------------------------
+//  BaselineEstimatorFromWaveformStart
+//
+class BaselineEstimatorFromWaveformStart {
+    public:
+  struct Config {
+    unsigned int nSamples = 0;
+  };
+  
+  BaselineEstimatorFromWaveformStart(Config config)
+    : fConfig { std::move(config) }
+    {}
+  
+  BaselineInfo_t estimate(raw::OpDetWaveform const& waveform) const;
+  
+    private:
+  Config fConfig;
+  
+}; // class BaselineEstimatorFromWaveformStart
+
+
+auto BaselineEstimatorFromWaveformStart::estimate
+  (raw::OpDetWaveform const& waveform) const -> BaselineInfo_t
+{
+  BaselineInfo_t info;
+  
+  auto const extractBaselineStatistics
+    = [](auto begin, auto end) -> BaselineInfo_t::RangeStats_t
+    {
+      BaselineInfo_t::RangeStats_t stats;
+      stats.nSamples = std::distance(begin, end);
+      std::tie(stats.average, stats.variance)
+        = averageAndVariance<double>(begin, end);
+      stats.median = median(begin, end);
+      return stats;
+    };
+  
+  // we choose the average as estimation of baseline here
+  double const (BaselineInfo_t::RangeStats_t::*baseline)
+    = &BaselineInfo_t::RangeStats_t::average;
+  
+  std::vector<double> const data { waveform.begin(), waveform.end() };
+
+  std::size_t nSamples = std::min(fConfig.nSamples, data.size());
+  assert(nSamples > 0);
+  
+  auto const start = data.begin();
+  auto const middle = start + nSamples / 2;
+  auto const stop = middle + nSamples / 2; // make it even
+  
+  info.regionA = extractBaselineStatistics(start, middle);
+  info.regionA.baseline = info.regionA.*baseline;
+  info.regionB = extractBaselineStatistics(middle, stop);
+  info.regionB.baseline = info.regionB.*baseline;
+  
+  info.estimate.baseline = (info.regionA.baseline + info.regionB.baseline) / 2.0;
+  info.estimate.nSamples = (info.regionA.nSamples + info.regionB.nSamples) / 2.0;
+  info.estimate.average = (info.regionA.average + info.regionB.average) / 2.0;
+  info.estimate.variance = (info.regionA.variance + info.regionB.variance) / 2.0;
+  info.estimate.median = median(start, stop);
+  
+  info.RMS
+    = (info.estimate.variance > 0.0)? std::sqrt(info.estimate.variance): 1.0;
+  
+  info.baselineAverage = info.baseline;
+
+  return info;
+} // BaselineEstimatorFromWaveformStart::estimate()
+
+
+// -----------------------------------------------------------------------------
+//  BaselineFromAssociation
+//
+class AssociatedBaseline {
+    
+    public:
+  /// Default constructor: empty cache.
+  AssociatedBaseline() = default;
+  
+  /// Initializes the baseline cache from associations or collection.
+  template <typename Event>
+  AssociatedBaseline(Event const& event, art::InputTag const& tag)
+    { fromDataProduct(event, tag); }
+  
+  /// Initializes the baseline cache from a parallel-data collection product.
+  template <typename Event>
+  void fromCollection(Event const& event, art::InputTag const& tag);
+  
+  /// Initializes the baseline cache from associations to waveforms.
+  template <typename Event>
+  void fromAssociations(Event const& event, art::InputTag const& tag);
+
+  /// Initializes the baseline cache from associations or collection.
+  template <typename Event>
+  void fromDataProduct(Event const& event, art::InputTag const& tag);
+  
+  /// Returns a pointer to the baseline associated to the specified waveform.
+  icarus::WaveformBaseline const* baselinePtr(std::size_t index) const
+    { return (index < fBaselines.size())? fBaselines[index]: nullptr; }
+  
+  /// Returns the baseline associated to the specified waveform.
+  /// @throw std::out_of_range if not present
+  icarus::WaveformBaseline const& baselineOf(std::size_t index) const;
+  
+    private:
+  /// Cached pointers to baselines, by waveform index.
+  std::vector<icarus::WaveformBaseline const*> fBaselines;
+  
+}; // AssociatedBaseline
+
+
+template <typename Event>
+void AssociatedBaseline::fromCollection
+  (Event const& event, art::InputTag const& tag)
+{
+  fBaselines.clear();
+  auto const& baselines
+    = event.template getProduct<std::vector<icarus::WaveformBaseline>>(tag);
+  fBaselines.reserve(baselines.size());
+  for (icarus::WaveformBaseline const& baseline: baselines)
+    fBaselines.push_back(&baseline);
+} // AssociatedBaseline::fromCollection()
+
+template <typename Event>
+void AssociatedBaseline::fromAssociations
+  (Event const& event, art::InputTag const& tag)
+{
+  fBaselines.clear();
+  auto const& assns
+    = event.template getProduct<art::Assns<raw::OpDetWaveform, icarus::WaveformBaseline>>
+    (tag);
+  
+  fBaselines.reserve(assns.size());
+  for (auto const& [ waveformPtr, baselinePtr ]: assns) {
+    std::size_t const index = waveformPtr.key();
+    if (fBaselines.size() <= index) fBaselines.resize(index + 1, nullptr);
+    if (baselinePtr) fBaselines[index] = baselinePtr.get();
+  }
+  
+} // AssociatedBaseline::fromAssociations()
+
+template <typename Event>
+void AssociatedBaseline::fromDataProduct(Event const& event, art::InputTag const& tag) {
+  // look among the association tags whether any matches `tag`
+  for (art::InputTag const& prodTag
+    : event.template getInputTags<art::Assns<raw::OpDetWaveform, icarus::WaveformBaseline>>()
+  ) {
+    if (!tag.process().empty() && (tag != prodTag)) continue;
+    else if (tag.label() != prodTag.label()) continue;
+    else if (tag.instance() != prodTag.instance()) continue;
+    fromAssociations(event, tag);
+    return;
+  }
+  fromCollection(event, tag);
+} // AssociatedBaseline::fromDataProduct()
+
+
+icarus::WaveformBaseline const& AssociatedBaseline::baselineOf
+  (std::size_t index) const
+{
+  icarus::WaveformBaseline const* ptr = baselinePtr(index);
+  if (ptr) return *ptr;
+  throw std::out_of_range{
+    "Baseline for waveform #" + std::to_string(index) + " not available"
+    };
+}
+
+
+class BaselineFromAssociation {
+    public:
+  struct Config {
+    art::InputTag assnsTag;
+  };
+  
+  BaselineFromAssociation(Config config): fConfig { std::move(config) } {}
+  
+  template <typename Event>
+  void setup(Event const& event);
+  
+  float estimate(std::size_t iWaveform) const
+    { return fBaselines.baselineOf(iWaveform).baseline(); }
+  
+    private:
+  Config fConfig;
+  
+  art::EventID fCachedID;
+  AssociatedBaseline fBaselines;
+  
+}; // class BaselineFromAssociation
+
+
+template <typename Event>
+void BaselineFromAssociation::setup(Event const& event) {
+  auto newID = event.eventAuxiliary().eventID();
+  if (fCachedID == newID) return; // already in cache
+  fBaselines.fromDataProduct(event, fConfig.assnsTag);
+  fCachedID = std::move(newID);
+}
+
+
+// -----------------------------------------------------------------------------
+
 /**
  * @brief Produces plots. Aaah!
  * 
@@ -320,11 +559,24 @@ class DrawPMTwaveforms {
   struct AlgorithmConfiguration {
     
     struct BaselineConfig {
+      struct FromWaveformStartParams_t {
+        unsigned int nSamples = 0;
+      };
+      
       bool subtract = false;
       
-      unsigned int nSamples = 0;
+      std::variant<
+        std::monostate, // for unset baseline
+        BaselineEstimatorFromWaveformStart::Config,
+        BaselineFromAssociation::Config
+        > source;
       
       bool doPrint = false; ///< Whether to print the value on screen.
+      
+      constexpr bool hasBaselines()
+        const { return !std::holds_alternative<std::monostate>(source); }
+      constexpr bool needBaselines() const { return subtract || doPrint; }
+      
     }; // BaselineConfig
     
     
@@ -339,8 +591,10 @@ class DrawPMTwaveforms {
     
     /// Override whether to have all plots on the same ADC scale or not.
     std::optional<bool> sharedADCrange;
-    
     std::vector<ValueRange<optical_time>> plotTimes;
+    
+    /// Relative threshold under baseline to be drawn.
+    std::optional<raw::ADC_Count_t> relThreshold;
     
     /// Configured baselines per channel.
     HWSettingMap<raw::ADC_Count_t> readoutBaselines;
@@ -395,14 +649,18 @@ class DrawPMTwaveforms {
     struct BaselineOptions_t {
       fhicl::Atom<bool> SubtractBaseline {
         Name{ "SubtractBaseline" },
-        Comment{ "estimate and subtract the baseline from the waveforms" },
+        Comment{ "subtract the baseline from the waveforms" },
         false // default
         };
       
-      fhicl::Atom<unsigned int> EstimationSamples {
+      fhicl::OptionalAtom<art::InputTag> BaselineTag {
+        Name{ "BaselineTag" },
+        Comment{ "obtain the baselines from the specified association" }
+        };
+      
+      fhicl::OptionalAtom<unsigned int> EstimationSamples {
         Name{ "EstimationSamples" },
         Comment{ "number of samples at the beginning of the waveform for baseline estimation" }
-        // mandatory
         };
       
       fhicl::Atom<bool> PrintBaseline {
@@ -477,10 +735,9 @@ class DrawPMTwaveforms {
       Comment{ "Configured readout settings, per channel" },
       };
     
-    fhicl::OptionalDelegatedParameter ReadoutThresholds {
-      Name{ "ReadoutThresholds" },
-      Comment
-        { "Configured discrimination thresholds, in `channel: baselineADC` form" }
+    fhicl::OptionalAtom<raw::ADC_Count_t> ShowThreshold {
+      Name{ "ShowThreshold" },
+      Comment{ "Shows a threshold level this lower than the baseline" }
       };
     
     fhicl::Atom<float> StaggerPlots {
@@ -583,36 +840,33 @@ class DrawPMTwaveforms {
 
 
   // --- BEGIN -- Analysis -----------------------------------------------------
-  struct BaselineInfo_t {
-    struct RangeStats_t {
-      double baseline; ///< The value chosen as representative of baseline.
-      unsigned int nSamples = 0; ///< Number of samples in the range.
-      double average; ///< Average of samples in the range.
-      double variance; ///< Variance of samples in the range.
-      double median; ///< Median of samples in the range.
-    };
-    
-    static constexpr double NoBaseline = std::numeric_limits<double>::lowest();
-    RangeStats_t estimate; ///< Our best estimate.
-    RangeStats_t regionA; ///< First partial of the most trusted region.
-    RangeStats_t regionB; ///< Second partial of the most trusted region.
-    RangeStats_t regionE; ///< Contol region.
-    double const& baseline = estimate.baseline; ///< Best baseline estimate.
-    double baselineAverage; ///< Average baseline of trusted and control region.
-    double RMS; ///< Baseline RMS.
-  }; // BaselineInfo_t
-  
   using BaselineEstimates_t = std::vector
     <std::pair<art::EventID, StatCollectorWithMinMaxAndMedian<double>>>;
+  
+  /// Variant type of the algorithm for baseline estimation.
+  using BaselineEstimatorAlg_t = std::variant<
+    std::monostate, // for unset baseline
+    BaselineEstimatorFromWaveformStart,
+    BaselineFromAssociation
+    >;
   
   /// The best estimation for each channel so far.
   BaselineEstimates_t fBestBaselineEstimates;
   
-  /// Extracts (and plots) baseline information from the specified `waveform`.
-  BaselineInfo_t extractBaseline(raw::OpDetWaveform const& waveform) const;
+  /// Algorithm for baseline estimation.
+  BaselineEstimatorAlg_t fBaselineEstimator;
+  
+  /// Extracts baseline information from the specified `waveform`.
+  BaselineInfo_t estimateBaselineFromStart(raw::OpDetWaveform const& waveform) const;
+  
+  /// Reads the baseline value from an association.
+  BaselineInfo_t fetchBaseline(std::size_t iWaveform) const;
   
   // --- END ---- Analysis -----------------------------------------------------
 
+  /// Returns a baseline algorithm variant based on the current configuration.
+  BaselineEstimatorAlg_t makeBaselineEstimator() const;
+  
   /// Produces a graph with the full content of the waveform.
   std::unique_ptr<TGraph> drawWaveform
     (WaveformInfo_t const& wf, art::EventID const& id) const;
@@ -644,6 +898,31 @@ class DrawPMTwaveforms {
   static std::pair<raw::Channel_t, raw::Channel_t> channelRange
     (Cluster_t const& waveforms);
   
+  /// Returns the duration of a waveform.
+  auto length(raw::OpDetWaveform const& waveform) const
+    { return waveform.size() * fConfig.tickDuration; }
+  
+  /// Returns the start time of a waveform.
+  optical_time startTime(raw::OpDetWaveform const& waveform) const
+    { return optical_time{ microsecond{ waveform.TimeStamp() } }; }
+    
+  /// Returns the time of the specified sample of a waveform.
+  optical_time sampleTime
+    (std::ptrdiff_t sampleIndex, raw::OpDetWaveform const& waveform) const
+    { return startTime(waveform) + sampleIndex * fConfig.tickDuration; }
+  
+  /// Returns the time of end of a waveform.
+  optical_time stopTime(raw::OpDetWaveform const& waveform) const
+    { return sampleTime(waveform.size(), waveform); }
+  
+  /// Returns the time span of a waveform.
+  ValueRange<optical_time> waveformTimeRange
+    (raw::OpDetWaveform const& waveform) const
+    {
+      return
+        ValueRange<optical_time>{ startTime(waveform), stopTime(waveform) };
+    }
+    
   
 }; // DrawPMTwaveforms
 
@@ -656,6 +935,7 @@ std::string const DrawPMTwaveforms::ConfigurationKey { "analysis" };
 DrawPMTwaveforms::DrawPMTwaveforms
   (Parameters const& config)
   : fConfig{ parseValidatedAlgorithmConfiguration(config()) }
+  , fBaselineEstimator{ makeBaselineEstimator() }
   , fBestBaselineEstimates{ fConfig.nChannels }
   {}
 
@@ -671,9 +951,35 @@ auto DrawPMTwaveforms::parseValidatedAlgorithmConfiguration
   algConfig.staggerFraction = config.StaggerPlots();
   if (std::optional<FHiCLconfig::BaselineOptions_t> baselineOpts = config.Baseline()) {
     algConfig.baseline.subtract = baselineOpts->SubtractBaseline();
-    algConfig.baseline.nSamples = baselineOpts->EstimationSamples();
     algConfig.baseline.doPrint = baselineOpts->PrintBaseline();
+    
+    if (algConfig.baseline.needBaselines()) {
+      if (baselineOpts->EstimationSamples().has_value()
+        + baselineOpts->BaselineTag().has_value()
+        != 1
+      ) {
+        throw std::runtime_error{ "Exactly one baseline source must be used." };
+      }
+      if (baselineOpts->EstimationSamples()) {
+        algConfig.baseline.source = BaselineEstimatorFromWaveformStart::Config{
+          /* .nSamples = */ baselineOpts->EstimationSamples().value()
+          };
+      }
+      else if (baselineOpts->BaselineTag()) {
+        algConfig.baseline.source = BaselineFromAssociation::Config{
+          /* .assnsTag = */ baselineOpts->BaselineTag().value()
+          };
+      }
+    }
   } // if baseline specs
+  
+  if (config.ShowThreshold()) {
+    if (!algConfig.baseline.hasBaselines()) {
+      throw std::runtime_error
+        { "Baseline extraction must be set up to draw relative thresholds." };
+    }
+    algConfig.relThreshold = config.ShowThreshold();
+  }
   
   if (config.ReadoutSettings()) {
     for (FHiCLconfig::ReadoutSettings_t const& settings
@@ -714,6 +1020,26 @@ auto DrawPMTwaveforms::parseValidatedAlgorithmConfiguration
   algConfig.tickDuration = config.TickDuration();
   return algConfig;
 } // DrawPMTwaveforms::parseValidatedAlgorithmConfiguration()
+
+
+auto DrawPMTwaveforms::makeBaselineEstimator() const -> BaselineEstimatorAlg_t {
+
+  struct AlgoMaker {
+    BaselineEstimatorAlg_t algo;
+    
+    void operator() (BaselineEstimatorFromWaveformStart::Config const& config)
+      { algo.emplace<BaselineEstimatorFromWaveformStart>(config); }
+    void operator() (BaselineFromAssociation::Config const& config)
+      { algo.emplace<BaselineFromAssociation>(config); }
+    void operator() (std::monostate const&) {}
+  };
+  
+  AlgoMaker algoMaker;
+  
+  std::visit(algoMaker, fConfig.baseline.source);
+  
+  return std::move(algoMaker.algo);
+} // DrawPMTwaveforms::makeBaselineEstimator()
 
 
 void DrawPMTwaveforms::printConfigurationHelp(std::ostream& out) {
@@ -787,28 +1113,54 @@ void DrawPMTwaveforms::analyze(Event const& event, art::EventID const& id) {
       << " ] (" << beamGateWidth << ")";
   } // if specified trigger
   
+  // prepare baseline algorithms
+  if (fConfig.baseline.needBaselines()) {
+    struct SetupBaselineAlg {
+      Event const& event;
+      void operator() (BaselineEstimatorFromWaveformStart& algo) const {}
+      void operator() (BaselineFromAssociation& algo) const { algo.setup(event); }
+      void operator() (std::monostate) const {}
+    };
+    std::visit(SetupBaselineAlg{ event }, fBaselineEstimator);
+  }
+  
   //
   // preselect the waveforms
   //
   std::vector<StatCollectorWithMinMaxAndMedian<double>> Baselines
     { fConfig.nChannels };
   std::vector<WaveformInfo_t> selectedWaveforms;
-  for (raw::OpDetWaveform const& waveform: waveforms) {
+  for (auto const& [ iWaveform, waveform ]: util::enumerate(waveforms)) {
     optical_time const time { microsecond { waveform.TimeStamp() } };
     raw::Channel_t const channel = waveform.ChannelNumber();
     
     bool selected = fConfig.plotTimes.empty();
     for (ValueRange<optical_time> const& goodTime: fConfig.plotTimes) {
-      if (!goodTime.contains(time)) continue;
+      if (!waveformTimeRange(waveform).overlaps(goodTime)) continue;
       selected = true;
       break;
     } // for time ranges
     if (!selected) continue;
     
     float baseline = 0.0; // no baseline
-    if (fConfig.baseline.subtract || fConfig.baseline.doPrint) {
-      BaselineInfo_t baselineInfo = extractBaseline(waveform);
-      baseline = baselineInfo.baseline;
+    if (fConfig.baseline.needBaselines()) {
+      
+      struct BaselineExtractor {
+        raw::OpDetWaveform const& waveform;
+        std::size_t iWaveform;
+        
+        float baseline = 0;
+        
+        void operator() (BaselineEstimatorFromWaveformStart const& algo)
+          { baseline = algo.estimate(waveform).baseline; }
+        void operator() (BaselineFromAssociation const& algo)
+          { baseline = algo.estimate(iWaveform); }
+        void operator() (std::monostate const&) {}
+        
+      };
+      BaselineExtractor extractor{ waveform, iWaveform };
+      std::visit(extractor, fBaselineEstimator);
+      baseline = extractor.baseline;
       Baselines.at(channel).add(baseline);
     }
     
@@ -1152,6 +1504,7 @@ std::unique_ptr<TCanvas> DrawPMTwaveforms::plotWaveformGroup(
   //
   for (auto const& [ iPad, wf ]: util::enumerate(group)) {
     TVirtualPad* pad = canvas->GetPad(iPad + 1);
+    if (!pad) continue;
     pad->cd();
     
     double const Xmin = pad->GetUxmin(), Xmax = pad->GetUxmax();
@@ -1191,6 +1544,19 @@ std::unique_ptr<TCanvas> DrawPMTwaveforms::plotWaveformGroup(
       triggerLine->SetLineWidth(2.0);
       triggerLine->SetBit(kCannotPick);
       triggerLine->Draw();
+    }
+    
+    if (fConfig.relThreshold) {
+      double level = -static_cast<double>(fConfig.relThreshold.value());
+      if (!fConfig.baseline.subtract) level += wf.baseline;
+      
+      TLine* baseLine = new TLine(Xmin, level, Xmax, level);
+      baseLine->SetHorizontal();
+      baseLine->SetLineStyle(kDashed);
+      baseLine->SetLineColor(kBlue + 4);
+      baseLine->SetLineWidth(2.0);
+      baseLine->SetBit(kCannotPick);
+      baseLine->Draw();
     }
     
     if (wf.hwBaseline != WaveformInfo_t::NoHWSetting) {
@@ -1288,69 +1654,34 @@ void DrawPMTwaveforms::printConfig(Stream&& out) const {
       << "'";
   }
   if (!fConfig.plotTimes.empty()) {
-    out << "\n * only plot waveforms within these " << fConfig.plotTimes.size()
-      << " time intervals:";
+    out << "\n * only plot waveforms overlapping these "
+      << fConfig.plotTimes.size() << " time intervals:";
     for (ValueRange<optical_time> const& range: fConfig.plotTimes)
       out << " " << range;
   }
-  if (fConfig.baseline.nSamples > 0) {
-    out << "\n * baseline estimated from " << fConfig.baseline.nSamples
-      << " samples";
+  {
+    struct BaselineConfigPrinter {
+      Stream& out;
+      
+      void operator()
+        (BaselineEstimatorFromWaveformStart::Config const& params)
+        const
+        { out << "\n * baseline estimated from " << params.nSamples; }
+      void operator() (BaselineFromAssociation::Config const& params) const
+        { out << "\n * baseline from data product '" << params.assnsTag.encode() << "'"; }
+      void operator() (std::monostate const&) const {}
+    };
+    std::visit(BaselineConfigPrinter{ out }, fConfig.baseline.source);
   }
   if (fConfig.baseline.subtract)
     out << "\n * subtract baseline in each plot";
+  if (fConfig.relThreshold) {
+    out << "\n * draw a threshold relative to the baseline of "
+      << fConfig.relThreshold.value() << " ADC#";
+  }
   
   out << "\n";
 } // DrawPMTwaveforms::printConfig()
-
-
-// -----------------------------------------------------------------------------
-auto DrawPMTwaveforms::extractBaseline(raw::OpDetWaveform const& waveform) const
-  -> BaselineInfo_t
-{
-  AlgorithmConfiguration::BaselineConfig const& config = fConfig.baseline;
-  
-  BaselineInfo_t info;
-  
-  auto const extractBaselineStatistics
-    = [](auto begin, auto end) -> BaselineInfo_t::RangeStats_t
-    {
-      BaselineInfo_t::RangeStats_t stats;
-      stats.nSamples = std::distance(begin, end);
-      std::tie(stats.average, stats.variance)
-        = averageAndVariance<double>(begin, end);
-      stats.median = median(begin, end);
-      return stats;
-    };
-  
-  // we choose the average as estimation of baseline here
-  double const (BaselineInfo_t::RangeStats_t::*baseline)
-    = &BaselineInfo_t::RangeStats_t::average;
-  
-  std::vector<double> const data { waveform.begin(), waveform.end() };
-  
-  auto const start = data.begin();
-  auto const middle = start + config.nSamples / 2;
-  auto const stop = middle + config.nSamples / 2; // make it even
-  
-  info.regionA = extractBaselineStatistics(start, middle);
-  info.regionA.baseline = info.regionA.*baseline;
-  info.regionB = extractBaselineStatistics(middle, stop);
-  info.regionB.baseline = info.regionB.*baseline;
-  
-  info.estimate.baseline = (info.regionA.baseline + info.regionB.baseline) / 2.0;
-  info.estimate.nSamples = (info.regionA.nSamples + info.regionB.nSamples) / 2.0;
-  info.estimate.average = (info.regionA.average + info.regionB.average) / 2.0;
-  info.estimate.variance = (info.regionA.variance + info.regionB.variance) / 2.0;
-  info.estimate.median = median(start, stop);
-  
-  info.RMS
-    = (info.estimate.variance > 0.0)? std::sqrt(info.estimate.variance): 1.0;
-  
-  info.baselineAverage = info.baseline;
-
-  return info;
-} // DrawPMTwaveforms::extractBaseline()
 
 
 // -----------------------------------------------------------------------------
@@ -1386,17 +1717,26 @@ std::unique_ptr<TGraph> DrawPMTwaveforms::drawWaveform
 
 
 // -----------------------------------------------------------------------------
+struct AnalysisRunOptions_t {
+
+  /// Path to the FHiCL configuration to be used for the services.
+  std::string configFile;
+  
+  /// Collection of paths of input file names.
+  std::vector<std::string> inputFiles;
+  
+  std::optional<std::string> outputFile;
+  std::optional<unsigned int> maxEvents; // 0 means unset
+  std::optional<unsigned int> skipEvents;
+}; // AnalysisRunOptions_t
 
 
 /**
  * @brief Runs the analysis macro.
- * @param configFile path to the FHiCL configuration to be used for the services
- * @param inputFiles vector of path of file names
+ * @param config the analysis run configuration
  * @return an integer as exit code (0 means success)
  */
-int runAnalysis
-  (std::string const& configFile, std::vector<std::string> inputFiles)
-{
+int runAnalysis(AnalysisRunOptions_t const& options) {
   
   TH1::AddDirectory(kFALSE); // do not register histograms in the current directory
   gROOT->SetBatch(kFALSE);
@@ -1405,7 +1745,8 @@ int runAnalysis
    * the "test" environment configuration
    */
   // read FHiCL configuration from a configuration file:
-  fhicl::ParameterSet config = lar::standalone::ParseConfiguration(configFile);
+  fhicl::ParameterSet config
+    = lar::standalone::ParseConfiguration(options.configFile);
 
   // set up message facility (always picked from "services.message")
   lar::standalone::SetupMessageFacility(config, "");
@@ -1414,8 +1755,12 @@ int runAnalysis
   
   // event loop options
   constexpr auto NoLimits = std::numeric_limits<unsigned int>::max();
-  unsigned int nSkip = analysisConfig.get("skipEvents", 0U);
-  unsigned int const maxEvents = analysisConfig.get("maxEvents", NoLimits);
+  
+  std::vector<std::string> inputFiles = options.inputFiles;
+  unsigned int nSkip
+    = options.skipEvents.value_or(analysisConfig.get("skipEvents", 0U));
+  unsigned int const maxEvents
+    = options.maxEvents.value_or(analysisConfig.get("maxEvents", NoLimits));
   if (analysisConfig.has_key("inputFile")) {
     inputFiles.push_back(analysisConfig.get<std::string>("inputFile"));
   }
@@ -1438,12 +1783,15 @@ int runAnalysis
   /*
    * preparation of histogram output file
    */
+  std::optional<std::string> outputFileName = options.outputFile;
   std::unique_ptr<TFile> pHistFile;
-  if (analysisConfig.has_key("histogramFile")) {
-    std::string fileName = analysisConfig.get<std::string>("histogramFile");
+  if (!outputFileName && analysisConfig.has_key("histogramFile"))
+    outputFileName = analysisConfig.get<std::string>("histogramFile");
+  
+  if (outputFileName) {
     mf::LogVerbatim("runAnalysis")
-      << "Creating output file: '" << fileName << "'" << std::endl;
-    pHistFile = std::make_unique<TFile>(fileName.c_str(), "RECREATE");
+      << "Creating output file: '" << *outputFileName << "'" << std::endl;
+    pHistFile = std::make_unique<TFile>(outputFileName->c_str(), "RECREATE");
   }
 
   /*
@@ -1509,24 +1857,65 @@ int runAnalysis
 
 
 /// Version with a single input file.
-int runAnalysis(std::string const& configFile, std::string filename)
-  { return runAnalysis(configFile, std::vector<std::string>{ filename }); }
+int runAnalysis(std::string configFile, std::string filename) {
+  AnalysisRunOptions_t args;
+  args.configFile = std::move(configFile);
+  args.inputFiles.push_back(std::move(filename));
+  return runAnalysis(args);
+}
 
 #if !defined(__CLING__)
 int main(int argc, char** argv) {
   
-  char **pParam = argv + 1, **pend = argv + argc;
-  if (pParam == pend) {
-    std::cerr << "Usage: " << argv[0] << "  configFile [inputFile ...]"
-      << std::endl;
-    DrawPMTwaveforms::printConfigurationHelp(std::cerr);
-    return 1;
-  }
-  std::string const configFile = *(pParam++);
-  std::vector<std::string> fileNames;
-  std::copy(pParam, pend, std::back_inserter(fileNames));
+  // the only thing required here is the configuration file;
+  // everything else will be integrated with the content of that file
+  // (but in case of conflict, command line arguments prevail)
+  AnalysisRunOptions_t args;
   
-  return runAnalysis(configFile, std::move(fileNames));
+  unsigned int maxEvents = 0;
+  unsigned int skipEvents = 0;
+  std::string outputFile;
+  namespace po = boost::program_options;
+  po::options_description desc("Options");
+  desc.add_options()
+    ("input", po::value(&args.inputFiles), "input file")
+    ("config,c", po::value(&args.configFile)->required(),
+      "FHiCL configuration")
+    ("output,o", po::value(&outputFile),
+      "output ROOT file")
+    ("maxevents,n", po::value(&maxEvents),
+      "maximum number of events (0 disables)")
+    ("skip", po::value(&skipEvents),
+      "skip this many events at start")
+    ("help,h", "help")
+    ;
+
+  po::positional_options_description pos;
+  pos.add("input", -1); // all positionals go into "input"
+
+  po::variables_map vm;
+  try {
+    po::store(
+      po::command_line_parser(argc, argv).options(desc).positional(pos).run(),
+      vm
+      );
+    if (vm.count("help")) { 
+      std::cout << desc
+        << "\n\nThe FHiCL configuration file is in the following format:\n";
+      DrawPMTwaveforms::printConfigurationHelp(std::cout);
+      return 0;
+    }
+    po::notify(vm);
+  } catch (const std::exception& e) {
+    std::cerr << "Error: " << e.what() << "\n\n" << desc << "\n";
+    return 2;
+  }
+  // one day Boost.ProgramOptions will support std::optional directly...
+  if (vm.count("maxevents") > 0) args.maxEvents = maxEvents;
+  if (vm.count("skip") > 0) args.skipEvents = skipEvents;
+  if (vm.count("output") > 0) args.outputFile = outputFile;
+
+  return runAnalysis(args);
 } // main()
 
 #endif // !__CLING__
