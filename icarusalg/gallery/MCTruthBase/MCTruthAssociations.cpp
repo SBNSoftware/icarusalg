@@ -560,11 +560,12 @@ double MCTruthAssociations::length(const detinfo::DetectorPropertiesData& detPro
 {
     // Get fiducial volume boundary.
     double xmin = -0.1;
-    double xmax = 2.*fGeometry->DetHalfWidth() + 0.1;
-    double ymin = -fGeometry->DetHalfHeight() + 0.1;
-    double ymax =  fGeometry->DetHalfHeight() + 0.1;
+    geo::TPCGeo const& tpcGeo = fGeometry->TPC({0, 0});
+    double xmax = 2.*tpcGeo.HalfWidth() + 0.1;
+    double ymin = -tpcGeo.HalfHeight() + 0.1;
+    double ymax =  tpcGeo.HalfHeight() + 0.1;
     double zmin = -0.1;
-    double zmax = fGeometry->DetLength() + 0.1;
+    double zmax = tpcGeo.Length() + 0.1;
     
     double readOutWindowSize = detProp.ReadOutWindowSize();
     

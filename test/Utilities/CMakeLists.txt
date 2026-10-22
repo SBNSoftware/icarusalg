@@ -54,15 +54,6 @@ cet_test(TimeIntervalConfig_test USE_BOOST_UNIT
     fhiclcpp::fhiclcpp
 )
 
-cet_test(AssnsCrosser_test
-  LIBRARIES
-    icarusalg::Utilities
-    icarusalg::Test
-    canvas::canvas
-    cetlib::cetlib
-  USE_BOOST_UNIT
-  )
-
 cet_test(sortLike_test
   LIBRARIES
     icarusalg::Utilities

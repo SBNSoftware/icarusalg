@@ -12,6 +12,8 @@
 
 // LArSoft libraries
 #include "larcorealg/CoreUtils/counter.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "lardataobj/RecoBase/Hit.h"
 
 // C/C++ standard libraries
@@ -24,11 +26,12 @@
 // -----------------------------------------------------------------------------
 lar::util::TrackTimeInterval::TrackTimeInterval(
   geo::GeometryCore const& geom,
+  geo::WireReadoutGeom const& wireReadout,
   detinfo::DetectorPropertiesData detProp,
   detinfo::DetectorTimings detTimings
 )
   : TrackTimeInterval
-    { buildGeomCache(geom), std::move(detProp), std::move(detTimings) }
+    { buildGeomCache(geom, wireReadout), std::move(detProp), std::move(detTimings) }
   {}
 
 
@@ -108,29 +111,31 @@ lar::util::TrackTimeInterval::TrackTimeInterval(
 
 
 // -----------------------------------------------------------------------------
-auto lar::util::TrackTimeInterval::buildGeomCache(geo::GeometryCore const& geom)
+auto lar::util::TrackTimeInterval::buildGeomCache
+  (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout)
   -> GeometryCache_t
 {
   return {
-      extractTimeLimits(geom),                   // limits
-      { geom.Ncryostats(), geom.MaxTPCsets() },  // TPCsetDims
-      extractTPCtoSetMap(geom)                   // TPCtoSet
+      extractTimeLimits(geom, wireReadout),             // limits
+      { geom.Ncryostats(), wireReadout.MaxTPCsets() },  // TPCsetDims
+      extractTPCtoSetMap(geom, wireReadout)             // TPCtoSet
     };
 } // lar::util::TrackTimeInterval::buildGeomCache()
 
 
 // -----------------------------------------------------------------------------
 auto lar::util::TrackTimeInterval::extractTimeLimits
-  (geo::GeometryCore const& geom) -> GeometryCache_t::LimitsCache_t
+  (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout)
+  -> GeometryCache_t::LimitsCache_t
 {
   // this infrastructure and coding style is a remnant of a previous version
   // which needed more information per plane and that information was different
   // by plane; the following is still correct, has fewer assumptions and it's
   // easier to expand, but a bit more wordy.
-  GeometryCache_t::LimitsCache_t limits = geom.makePlaneData<TimeLimits_t>();
+  GeometryCache_t::LimitsCache_t limits{geom.Ncryostats(), geom.MaxTPCs(), wireReadout.MaxPlanes()};
   
   for (geo::TPCGeo const& TPC: geom.Iterate<geo::TPCGeo>()) {
-    geo::PlaneGeo const& firstPlane = TPC.FirstPlane();
+    geo::PlaneGeo const& firstPlane = wireReadout.FirstPlane(TPC.ID());
     
     // in ICARUS the hit time is corrected as if it were on the first plane
     // (the most inner one);
@@ -142,9 +147,7 @@ auto lar::util::TrackTimeInterval::extractTimeLimits
     centimeters const driftDistance
       { std::abs(TPC.DriftDir().Dot(cathodeCenter - firstPlaneCenter)) }; // cm
     
-    for (geo::PlaneGeo const& plane: TPC.IteratePlanes()) {
-      
-      geo::PlaneID const& planeID = plane.ID();
+    for (geo::PlaneID const& planeID: wireReadout.Iterate<geo::PlaneID>(TPC.ID())) {
       
       limits[planeID] = { driftDistance };
       
@@ -157,13 +160,14 @@ auto lar::util::TrackTimeInterval::extractTimeLimits
 
 // -----------------------------------------------------------------------------
 auto lar::util::TrackTimeInterval::extractTPCtoSetMap
-  (geo::GeometryCore const& geom) -> GeometryCache_t::TPCtoSetMap_t
+  (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout)
+  -> GeometryCache_t::TPCtoSetMap_t
 {
-  GeometryCache_t::TPCtoSetMap_t map = geom.makeTPCData<readout::TPCsetID>();
+  GeometryCache_t::TPCtoSetMap_t map{geom.Ncryostats(), geom.MaxTPCs()};
   
-  for (readout::TPCsetID const tpcsetID: geom.Iterate<readout::TPCsetID>()) {
+  for (readout::TPCsetID const tpcsetID: wireReadout.Iterate<readout::TPCsetID>()) {
     assert(tpcsetID.isValid);
-    for (geo::TPCID tpcID: geom.TPCsetToTPCs(tpcsetID)) {
+    for (geo::TPCID tpcID: wireReadout.TPCsetToTPCs(tpcsetID)) {
       assert(tpcID.isValid);
       map[tpcID] = tpcsetID;
     }
@@ -299,8 +303,8 @@ std::ostream& lar::util::operator<<
 // ---  lar::util::TrackTimeIntervalMaker
 // -----------------------------------------------------------------------------
 lar::util::TrackTimeIntervalMaker::TrackTimeIntervalMaker
-  (geo::GeometryCore const& geom)
-  : fGeomCache{ TrackTimeInterval::buildGeomCache(geom) }
+  (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout)
+  : fGeomCache{ TrackTimeInterval::buildGeomCache(geom, wireReadout) }
   {}
 
 

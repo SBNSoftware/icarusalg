@@ -13,6 +13,7 @@
 // LArSoft libraries
 #include "gallery/Event.h"
 #include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/WireReadoutGeom.h"
 #include "lardataalg/DetectorInfo/DetectorProperties.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -47,6 +48,7 @@ public:
     MCAssociations(fhicl::ParameterSet const& config);
   
     void setup(const geo::GeometryCore&,
+               const geo::WireReadoutGeom&,
                const detinfo::DetectorPropertiesData&,
                TDirectory*);
   
@@ -68,6 +70,7 @@ private:
     std::string              fLocalDirName;
     
     geo::GeometryCore const*           fGeometry           = nullptr;
+    geo::WireReadoutGeom const*        fWireReadout        = nullptr;
     std::unique_ptr<detinfo::DetectorPropertiesData const> fDetectorProperties;
     TDirectory*                        fDir                = nullptr;
     

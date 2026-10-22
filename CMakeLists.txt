@@ -17,7 +17,7 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 # cmake_policy(VERSION 3.19)
 
 find_package(cetmodules 3.24.01 REQUIRED)
-project(icarusalg VERSION 09.92.00 LANGUAGES CXX)
+project(icarusalg VERSION 10.27.00 LANGUAGES CXX)
 
 message(STATUS
   "\n-- ============================================================================="
@@ -37,7 +37,7 @@ cet_set_compiler_flags(DIAGS CAUTIOUS
 cet_report_compiler_flags(REPORT_THRESHOLD VERBOSE)
 
 # these are minimum required versions, not the actual product versions
-find_package( sbnobj        REQUIRED EXPORT )
+#find_package( sbnobj        REQUIRED EXPORT )
 find_package( larcorealg    REQUIRED EXPORT )
 find_package( larcoreobj    REQUIRED EXPORT )
 find_package( lardataalg    REQUIRED EXPORT )

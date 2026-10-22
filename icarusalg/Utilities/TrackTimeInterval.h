@@ -16,6 +16,7 @@
 #include "lardataalg/DetectorInfo/DetectorPropertiesData.h"
 #include "lardataalg/Utilities/quantities/spacetime.h"
 #include "larcorealg/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/ReadoutDataContainers.h"
 #include "larcoreobj/SimpleTypesAndConstants/readout_types.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
@@ -175,6 +176,7 @@ class lar::util::TrackTimeInterval {
   /// Constructor: initializes with the specified detector properties.
   TrackTimeInterval(
     geo::GeometryCore const& geom,
+    geo::WireReadoutGeom const& wireReadout,
     detinfo::DetectorPropertiesData detProp,
     detinfo::DetectorTimings detTimings
     );
@@ -306,14 +308,15 @@ class lar::util::TrackTimeInterval {
   
   
   /// Creates a geometry cache.
-  static GeometryCache_t buildGeomCache(geo::GeometryCore const& geom);
+  static GeometryCache_t buildGeomCache
+    (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout);
   
   /// Returns the time limits of all the planes in the specified TPC.
   static GeometryCache_t::LimitsCache_t extractTimeLimits
-    (geo::GeometryCore const& geom);
+    (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout);
   
   static GeometryCache_t::TPCtoSetMap_t extractTPCtoSetMap
-    (geo::GeometryCore const& geom);
+    (geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout);
   
   
   /**
@@ -474,7 +477,7 @@ class lar::util::TrackTimeIntervalMaker {
     public:
   
   /// Constructor: creates a cache from the geometry.
-  TrackTimeIntervalMaker(geo::GeometryCore const& geom);
+  TrackTimeIntervalMaker(geo::GeometryCore const& geom, geo::WireReadoutGeom const& wireReadout);
   
   //@{
   /// Returns a new `TrackTimeInterval` with the specified detector properties.
