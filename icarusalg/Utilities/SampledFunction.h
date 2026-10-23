@@ -64,28 +64,28 @@ namespace util {
  * _M N_.
  *
  * @note Due to the implementation of `gsl::span`, its iterators are valid only
- *       while the span object is valid as well.
- *       This means that a construct like:
- *       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
- *       for (auto it = sf.subsample(0).begin(); it != sf.subsample(0).end(); ++it)
- *         // ...
- *       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *       will mysteriously fail at run time because `it` refers to a temporary
- *       span that quickly falls out of scope (and the end iterator refers to
- *       a different span object, too). The correct pattern is to store the
- *       subsample result before iterating through it:
- *       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
- *       auto const& subsample = sf.subsample(0);
- *       for (auto it = subsample.begin(); it != subsample.end(); ++it)
- *         // ...
- *       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *       or, if appliable, let the range-for loop di that for us:
- *       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
- *       for (auto value: sf.subsample(0))
- *         // ...
- *       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *       This will not be the case any more with `std::span`, which apparently
- *       is going to satisfy the `borrowed_range` requirement.
+ * while the span object is valid as well.
+ * This means that a construct like:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
+ * for (auto it = sf.subsample(0).begin(); it != sf.subsample(0).end(); ++it)
+ *   // ...
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * will mysteriously fail at run time because `it` refers to a temporary
+ * span that quickly falls out of scope (and the end iterator refers to
+ * a different span object, too). The correct pattern is to store the
+ * subsample result before iterating through it:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
+ * auto const& subsample = sf.subsample(0);
+ * for (auto it = subsample.begin(); it != subsample.end(); ++it)
+ *   // ...
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * or, if applicable, let the range-for loop do that for us:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
+ * for (auto value: sf.subsample(0))
+ *   // ...
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * This will not be the case any more with `std::span`, which apparently
+ * is going to satisfy the `borrowed_range` requirement.
  *
  */
 template <typename XType = double, typename YType = XType>

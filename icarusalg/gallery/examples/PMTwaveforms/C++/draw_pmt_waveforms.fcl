@@ -28,7 +28,7 @@ analysis: {
     
     Baseline: {
       SubtractBaseline:  true
-      EstimationSamples: 200
+      BaselineTag: pmtconfigbaselines
     }
     
   } # analysis

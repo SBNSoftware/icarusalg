@@ -17,8 +17,8 @@
 #include "lardataalg/Utilities/quantities_fhicl.h" // convenience
 
 // framework libraries
-#include "fhiclcpp/types/OptionalTable.h"
-#include "fhiclcpp/types/Table.h"
+#include "fhiclcpp/types/OptionalTableAs.h"
+#include "fhiclcpp/types/TableAs.h"
 #include "fhiclcpp/types/OptionalAtom.h"
 #include "fhiclcpp/types/Atom.h"
 
@@ -123,8 +123,7 @@ namespace icarus::ns::fhicl {
    *   using Parameters = fhicl::Table<Config>;
    *   
    *   MyAlgorithm(Parameters const& params)
-   *     : fInterval
-   *       { icarus::ns::fhicl::makeTimeInterval(params().Interval()) }
+   *     : fInterval{ params().Interval() }
    *     {
    *       mf::LogInfo{ "MyAlgorithm" } << "Time interval: " << fInterval;
    *     }
@@ -142,7 +141,8 @@ namespace icarus::ns::fhicl {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
   template <typename Time>
-  using TimeIntervalTable = ::fhicl::Table<TimeIntervalConfig<Time>> ;
+  using TimeIntervalTable = ::fhicl::TableAs
+    <icarus::ns::util::TimeInterval<Time>, TimeIntervalConfig<Time>>;
   
   /**
    * @brief FHiCL optional configuration object for specification of a (time)
@@ -233,8 +233,8 @@ namespace icarus::ns::fhicl {
    * `[ 0, 0 ]` interval).
    */
   template <typename Time>
-  using TimeIntervalOptionalTable
-    = ::fhicl::OptionalTable<TimeIntervalConfig<Time>>;
+  using TimeIntervalOptionalTable = ::fhicl::OptionalTableAs
+    <icarus::ns::util::TimeInterval<Time>, TimeIntervalConfig<Time>>;
   
 } // namespace icarus::ns::fhicl
 
@@ -340,6 +340,15 @@ icarus::ns::fhicl::makeTimeInterval
   (std::optional<TimeIntervalConfig<Time>> const& config)
   { return config? std::optional{ makeTimeInterval(*config) }: std::nullopt; }
 
+
+//--------------------------------------------------------------------------
+namespace icarus::ns::fhicl {
+  // this is for FHiCL to directly convert a configuration object to interval
+  template <typename Time>
+  icarus::ns::util::TimeInterval<Time> convert
+    (TimeIntervalConfig<Time> const& config)
+    { return makeTimeInterval(config); }
+}
 
 //--------------------------------------------------------------------------
 

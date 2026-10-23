@@ -47,4 +47,32 @@ void util::decode(std::any const& src, TimeScale& value) {
   util::details::decodeEnumClassToFHiCL(src, value);
 }
 
+//==============================================================================
+//===  sbn::BeamType ===========================================================
+//==============================================================================
+//------------------------------------------------------------------------------
+//--- util::StandardSelectorFor<BeamType>
+//------------------------------------------------------------------------------
+namespace util {
+  
+  StandardSelectorFor<sbn::BeamType>::StandardSelectorFor()
+    : MultipleChoiceSelection<sbn::BeamType>{
+        { sbn::BeamType::kUnknown, "unknown" }
+      , { sbn::BeamType::kBNB,     "BNB" }
+      , { sbn::BeamType::kNuMI,    "NuMI" }
+      }
+    {}
+  
+}
+
+//------------------------------------------------------------------------------
+::fhicl::detail::ps_atom_t sbn::encode(BeamType const& value) {
+  return ::util::details::encodeEnumClassToFHiCL(value);
+}
+
+//------------------------------------------------------------------------------
+void sbn::decode(std::any const& src, BeamType& value) {
+  ::util::details::decodeEnumClassToFHiCL(src, value);
+}
+
 //------------------------------------------------------------------------------
