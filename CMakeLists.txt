@@ -58,6 +58,7 @@ find_package( Microsoft.GSL HINTS $ENV{GUIDELINE_SL_DIR} REQUIRED EXPORT )
 include(ArtDictionary)
 include(CetMake)
 include(BasicPlugin)
+include(SBNutils)
 
 # ADD SOURCE CODE SUBDIRECTORIES HERE
 add_subdirectory(icarusalg)
